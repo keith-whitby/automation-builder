@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OptixApiService Test - Optix Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #005a87;
+        }
+        .result {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🌐 OptixApiService Test - Optix Integration</h1>
+        <p>This page tests the OptixApiService with our confirmed working authentication.</p>
+        
+        <div class="test-section">
+            <h3>🎫 Token Input</h3>
+            <div class="input-group">
+                <label for="test-token">Test Token:</label>
+                <input type="text" id="test-token" value="baa617ef706e0a926e21a5183db312de71d06b1ap" placeholder="Enter token here">
+            </div>
+            <div class="input-group">
+                <label for="test-org-id">Organization ID:</label>
+                <input type="text" id="test-org-id" value="12075" placeholder="Enter organization ID">
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 OptixApiService Tests</h3>
+            <button class="button" onclick="testApiService()">Test API Service</button>
+            <button class="button" onclick="testOrganization()">Test Organization Query</button>
+            <button class="button" onclick="testWorkflowSteps()">Test Workflow Steps</button>
+            <button class="button" onclick="testCreateWorkflow()">Test Create Workflow</button>
+            <button class="button" onclick="testConnection()">Test Connection</button>
+            <button class="button" onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Test Results</h3>
+            <div id="test-results" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Next Steps</h3>
+            <p>If these tests pass, we can proceed with building the automation builder chatbot!</p>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+
+        function addResult(test, success, data, error) {
+            const result = {
+                timestamp: new Date().toISOString(),
+                test: test,
+                success: success,
+                data: data,
+                error: error
+            };
+            
+            testResults.push(result);
+            updateResults();
+        }
+
+        function updateResults() {
+            const resultsElement = document.getElementById('test-results');
+            resultsElement.textContent = JSON.stringify(testResults, null, 2);
+            
+            if (testResults.length > 0) {
+                const lastResult = testResults[testResults.length - 1];
+                if (lastResult.success) {
+                    resultsElement.className = 'result success';
+                } else {
+                    resultsElement.className = 'result error';
+                }
+            }
+        }
+
+        function clearResults() {
+            testResults = [];
+            updateResults();
+            console.log('Results cleared');
+        }
+
+        // Mock OptixApiService for testing
+        class MockOptixApiService {
+            constructor() {
+                this.baseUrl = 'https://api.optixapp.com';
+                this.graphqlEndpoint = `${this.baseUrl}/graphql`;
+                this.token = null;
+                this.organizationId = null;
+            }
+
+            async initialize() {
+                const token = document.getElementById('test-token').value.trim();
+                const orgId = document.getElementById('test-org-id').value.trim();
+                
+                if (token && orgId) {
+                    this.token = token;
+                    this.organizationId = orgId;
+                    return true;
+                } else {
+                    throw new Error('No authentication token available');
+                }
+            }
+
+            async graphqlRequest(query, variables = {}) {
+                if (!this.token) {
+                    await this.initialize();
+                }
+
+                const headers = {
+                    'Accept': '*/*',
+                    'Accept-Language': 'en-US,en;q=0.9',
+                    'Content-Type': 'application/json',
+                    'Origin': window.location.origin,
+                    'Referer': window.location.href,
+                    'User-Agent': navigator.userAgent,
+                    'authorization': `Bearer ${this.token}`
+                };
+
+                const body = {
+                    query: query,
+                    variables: variables
+                };
+
+                console.log('MockOptixApiService: Making GraphQL request', { query: query.substring(0, 100) + '...', variables });
+
+                const response = await fetch(this.graphqlEndpoint, {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify(body)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.errors) {
+                    console.error('MockOptixApiService: GraphQL errors', data.errors);
+                    throw new Error(`GraphQL errors: ${data.errors.map(e => e.message).join(', ')}`);
+                }
+
+                console.log('MockOptixApiService: GraphQL response received', data);
+                return data.data;
+            }
+
+            async getOrganization() {
+                const query = `
+                    query GetOrgIDandName {
+                        organization {
+                            organization_id
+                            name
+                            square_logo {
+                                url
+                            }
+                        }
+                    }
+                `;
+
+                return await this.graphqlRequest(query);
+            }
+
+            async getWorkflowAvailableSteps() {
+                const query = `
+                    query GetWorkflowAvailableSteps($organization_id: ID!) {
+                        workflowAvailableSteps(organization_id: $organization_id) {
+                            ... on WorkflowTrigger {
+                                workflow_step_id
+                                trigger_type
+                                requires_automations_plus
+                                variables {
+                                    name
+                                }
+                            }
+                            ... on WorkflowCondition {
+                                workflow_step_id
+                                requires_automations_plus
+                                condition_operation
+                            }
+                            ... on WorkflowDelay {
+                                workflow_step_id
+                                requires_automations_plus
+                            }
+                            ... on WorkflowAction {
+                                workflow_step_id
+                                action_type
+                                requires_automations_plus
+                            }
+                        }
+                    }
+                `;
+
+                return await this.graphqlRequest(query, { organization_id: this.organizationId });
+            }
+
+            async createWorkflow(workflowData) {
+                const mutation = `
+                    mutation CreateWorkflow($organization_id: ID!, $input: WorkflowInput!) {
+                        workflowsCommit(
+                            organization_id: $organization_id
+                            input: $input
+                        ) {
+                            success
+                            message
+                            data {
+                                workflow_id
+                            }
+                        }
+                    }
+                `;
+
+                return await this.graphqlRequest(mutation, { 
+                    organization_id: this.organizationId,
+                    input: workflowData 
+                });
+            }
+
+            async testConnection() {
+                try {
+                    const orgData = await this.getOrganization();
+                    console.log('MockOptixApiService: Connection test successful', orgData);
+                    return {
+                        success: true,
+                        organization: orgData.organization
+                    };
+                } catch (error) {
+                    console.error('MockOptixApiService: Connection test failed', error);
+                    return {
+                        success: false,
+                        error: error.message
+                    };
+                }
+            }
+        }
+
+        const mockApiService = new MockOptixApiService();
+
+        async function testApiService() {
+            console.log('Testing OptixApiService...');
+            
+            try {
+                const success = await mockApiService.initialize();
+                const result = {
+                    initialized: success,
+                    token: mockApiService.token ? `${mockApiService.token.substring(0, 10)}...` : null,
+                    organizationId: mockApiService.organizationId
+                };
+                
+                addResult('API Service Test', success, result, null);
+                console.log('API Service test result:', result);
+                
+            } catch (error) {
+                addResult('API Service Test', false, null, error.message);
+                console.error('API Service test error:', error);
+            }
+        }
+
+        async function testOrganization() {
+            console.log('Testing organization query...');
+            
+            try {
+                const data = await mockApiService.getOrganization();
+                addResult('Organization Query', true, data, null);
+                console.log('Organization query result:', data);
+                
+            } catch (error) {
+                addResult('Organization Query', false, null, error.message);
+                console.error('Organization query error:', error);
+            }
+        }
+
+        async function testWorkflowSteps() {
+            console.log('Testing workflow steps query...');
+            
+            try {
+                const data = await mockApiService.getWorkflowAvailableSteps();
+                addResult('Workflow Steps Query', true, data, null);
+                console.log('Workflow steps query result:', data);
+                
+            } catch (error) {
+                addResult('Workflow Steps Query', false, null, error.message);
+                console.error('Workflow steps query error:', error);
+            }
+        }
+
+        async function testCreateWorkflow() {
+            console.log('Testing workflow creation...');
+            
+            try {
+                const workflowData = {
+                    name: "Test Workflow from API Service",
+                    description: "A test workflow created via OptixApiService",
+                    is_paused: true,
+                    steps: []
+                };
+                
+                const data = await mockApiService.createWorkflow(workflowData);
+                addResult('Create Workflow', true, data, null);
+                console.log('Create workflow result:', data);
+                
+            } catch (error) {
+                addResult('Create Workflow', false, null, error.message);
+                console.error('Create workflow error:', error);
+            }
+        }
+
+        async function testConnection() {
+            console.log('Testing API connection...');
+            
+            try {
+                const result = await mockApiService.testConnection();
+                addResult('Connection Test', result.success, result, null);
+                console.log('Connection test result:', result);
+                
+            } catch (error) {
+                addResult('Connection Test', false, null, error.message);
+                console.error('Connection test error:', error);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('OptixApiService test page loaded');
+        });
+    </script>
+</body>
+</html>

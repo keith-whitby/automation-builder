@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PostMessage Test - Optix Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #005a87;
+        }
+        .log {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📡 PostMessage Test - Optix Integration</h1>
+        <p>This page tests postMessage communication with the Optix parent window.</p>
+        
+        <div class="test-section">
+            <h3>🔧 Test Controls</h3>
+            <button class="button" onclick="testBasicPostMessage()">Test Basic PostMessage</button>
+            <button class="button" onclick="requestAuthToken()">Request Auth Token</button>
+            <button class="button" onclick="requestOptixInfo()">Request Optix Info</button>
+            <button class="button" onclick="clearLog()">Clear Log</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 Message Log</h3>
+            <div id="message-log" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Test Results</h3>
+            <div id="test-results" class="log"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📚 Documentation Links</h3>
+            <p>If postMessage doesn't work, you may need to check:</p>
+            <ul>
+                <li><strong>Optix Developer Documentation</strong> - Look for iframe integration guides</li>
+                <li><strong>Optix API Documentation</strong> - Check for authentication methods</li>
+                <li><strong>Optix Support</strong> - Contact Optix for iframe authentication guidance</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let messageLog = [];
+        let testResults = {};
+
+        // Listen for messages from parent
+        window.addEventListener('message', function(event) {
+            console.log('Received message from parent:', event);
+            
+            const logEntry = {
+                timestamp: new Date().toISOString(),
+                type: 'RECEIVED',
+                origin: event.origin,
+                data: event.data,
+                source: event.source ? 'Parent Window' : 'Unknown'
+            };
+            
+            messageLog.push(logEntry);
+            updateMessageLog();
+            
+            // Check if this is a response to our auth request
+            if (event.data && event.data.type === 'AUTH_RESPONSE') {
+                testResults.authResponse = event.data;
+                updateTestResults();
+            }
+            
+            if (event.data && event.data.type === 'OPTIX_INFO_RESPONSE') {
+                testResults.optixInfoResponse = event.data;
+                updateTestResults();
+            }
+        });
+
+        function logMessage(type, message, data = null) {
+            const logEntry = {
+                timestamp: new Date().toISOString(),
+                type: type,
+                message: message,
+                data: data
+            };
+            
+            messageLog.push(logEntry);
+            updateMessageLog();
+            console.log(`${type}: ${message}`, data);
+        }
+
+        function updateMessageLog() {
+            const logElement = document.getElementById('message-log');
+            logElement.textContent = messageLog.map(entry => 
+                `[${entry.timestamp}] ${entry.type}: ${entry.message}${entry.data ? '\n' + JSON.stringify(entry.data, null, 2) : ''}`
+            ).join('\n\n');
+            
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+
+        function updateTestResults() {
+            const resultsElement = document.getElementById('test-results');
+            resultsElement.textContent = JSON.stringify(testResults, null, 2);
+        }
+
+        function testBasicPostMessage() {
+            logMessage('SEND', 'Testing basic postMessage to parent');
+            
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'TEST_MESSAGE',
+                        message: 'Hello from iframe!',
+                        timestamp: new Date().toISOString()
+                    }, '*');
+                    logMessage('SUCCESS', 'Basic postMessage sent successfully');
+                } else {
+                    logMessage('ERROR', 'No parent window available');
+                }
+            } catch (error) {
+                logMessage('ERROR', 'Failed to send postMessage: ' + error.message);
+            }
+        }
+
+        function requestAuthToken() {
+            logMessage('SEND', 'Requesting authentication token from parent');
+            
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'AUTH_REQUEST',
+                        action: 'getAuthToken',
+                        timestamp: new Date().toISOString(),
+                        requestId: 'auth-' + Date.now()
+                    }, '*');
+                    logMessage('SUCCESS', 'Auth request sent successfully');
+                } else {
+                    logMessage('ERROR', 'No parent window available');
+                }
+            } catch (error) {
+                logMessage('ERROR', 'Failed to send auth request: ' + error.message);
+            }
+        }
+
+        function requestOptixInfo() {
+            logMessage('SEND', 'Requesting Optix information from parent');
+            
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'OPTIX_INFO_REQUEST',
+                        action: 'getOptixInfo',
+                        timestamp: new Date().toISOString(),
+                        requestId: 'info-' + Date.now()
+                    }, '*');
+                    logMessage('SUCCESS', 'Optix info request sent successfully');
+                } else {
+                    logMessage('ERROR', 'No parent window available');
+                }
+            } catch (error) {
+                logMessage('ERROR', 'Failed to send Optix info request: ' + error.message);
+            }
+        }
+
+        function clearLog() {
+            messageLog = [];
+            testResults = {};
+            updateMessageLog();
+            updateTestResults();
+            logMessage('INFO', 'Log cleared');
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            logMessage('INFO', 'PostMessage test page loaded');
+            logMessage('INFO', 'Listening for messages from parent window');
+            
+            // Try to detect if we're in an iframe
+            if (window.parent && window.parent !== window) {
+                logMessage('INFO', 'Running in iframe - parent window detected');
+            } else {
+                logMessage('WARNING', 'Not running in iframe - no parent window detected');
+            }
+        });
+    </script>
+</body>
+</html>

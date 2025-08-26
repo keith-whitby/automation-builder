@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AuthService Test - Optix Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #005a87;
+        }
+        .result {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .input-group {
+            margin: 10px 0;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .input-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔐 AuthService Test - Optix Integration</h1>
+        <p>This page tests the AuthService with our confirmed working token.</p>
+        
+        <div class="test-section">
+            <h3>🎫 Token Input</h3>
+            <div class="input-group">
+                <label for="test-token">Test Token:</label>
+                <input type="text" id="test-token" value="baa617ef706e0a926e21a5183db312de71d06b1ap" placeholder="Enter token here">
+            </div>
+            <div class="input-group">
+                <label for="test-org-id">Organization ID:</label>
+                <input type="text" id="test-org-id" value="12075" placeholder="Enter organization ID">
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 AuthService Tests</h3>
+            <button class="button" onclick="testAuthService()">Test AuthService</button>
+            <button class="button" onclick="testTokenValidation()">Test Token Validation</button>
+            <button class="button" onclick="testStorage()">Test Storage</button>
+            <button class="button" onclick="testAPIWithAuth()">Test API with Auth</button>
+            <button class="button" onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Test Results</h3>
+            <div id="test-results" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Next Steps</h3>
+            <p>If these tests pass, we can proceed with building the automation builder chatbot!</p>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+
+        function addResult(test, success, data, error) {
+            const result = {
+                timestamp: new Date().toISOString(),
+                test: test,
+                success: success,
+                data: data,
+                error: error
+            };
+            
+            testResults.push(result);
+            updateResults();
+        }
+
+        function updateResults() {
+            const resultsElement = document.getElementById('test-results');
+            resultsElement.textContent = JSON.stringify(testResults, null, 2);
+            
+            if (testResults.length > 0) {
+                const lastResult = testResults[testResults.length - 1];
+                if (lastResult.success) {
+                    resultsElement.className = 'result success';
+                } else {
+                    resultsElement.className = 'result error';
+                }
+            }
+        }
+
+        function clearResults() {
+            testResults = [];
+            updateResults();
+            console.log('Results cleared');
+        }
+
+        // Mock AuthService for testing
+        class MockAuthService {
+            constructor() {
+                this.token = null;
+                this.organizationId = null;
+                this.isValid = false;
+                this.error = null;
+                this.lastValidated = null;
+            }
+
+            initialize() {
+                const token = document.getElementById('test-token').value.trim();
+                const orgId = document.getElementById('test-org-id').value.trim();
+                
+                if (token && orgId) {
+                    this.token = token;
+                    this.organizationId = orgId;
+                    this.isValid = true;
+                    this.error = null;
+                    this.lastValidated = new Date().toISOString();
+                    
+                    // Store in localStorage
+                    localStorage.setItem('optix_auth_token', token);
+                    localStorage.setItem('optix_organization_id', orgId);
+                    localStorage.setItem('optix_auth_timestamp', new Date().toISOString());
+                    
+                    return true;
+                } else {
+                    this.clearAuth();
+                    return false;
+                }
+            }
+
+            getAuthState() {
+                return {
+                    token: this.token,
+                    isValid: this.isValid,
+                    error: this.error,
+                    organizationId: this.organizationId,
+                    isAuthenticated: this.isValid && this.token !== null,
+                    lastValidated: this.lastValidated
+                };
+            }
+
+            clearAuth() {
+                this.token = null;
+                this.isValid = false;
+                this.error = null;
+                this.organizationId = null;
+                this.lastValidated = null;
+            }
+
+            clearStorage() {
+                localStorage.removeItem('optix_auth_token');
+                localStorage.removeItem('optix_organization_id');
+                localStorage.removeItem('optix_auth_timestamp');
+            }
+        }
+
+        const mockAuthService = new MockAuthService();
+
+        async function testAuthService() {
+            console.log('Testing AuthService...');
+            
+            try {
+                const success = mockAuthService.initialize();
+                const authState = mockAuthService.getAuthState();
+                
+                addResult('AuthService Test', success, authState, null);
+                console.log('AuthService test result:', authState);
+                
+            } catch (error) {
+                addResult('AuthService Test', false, null, error.message);
+                console.error('AuthService test error:', error);
+            }
+        }
+
+        async function testTokenValidation() {
+            console.log('Testing token validation...');
+            
+            try {
+                const token = document.getElementById('test-token').value.trim();
+                const orgId = document.getElementById('test-org-id').value.trim();
+                
+                // Basic validation
+                const isValid = token && token.length > 20 && orgId && orgId.length > 0;
+                
+                const validationResult = {
+                    token: token ? `${token.substring(0, 10)}...` : null,
+                    tokenLength: token ? token.length : 0,
+                    organizationId: orgId,
+                    isValid: isValid
+                };
+                
+                addResult('Token Validation', isValid, validationResult, null);
+                console.log('Token validation result:', validationResult);
+                
+            } catch (error) {
+                addResult('Token Validation', false, null, error.message);
+                console.error('Token validation error:', error);
+            }
+        }
+
+        async function testStorage() {
+            console.log('Testing storage...');
+            
+            try {
+                const token = localStorage.getItem('optix_auth_token');
+                const orgId = localStorage.getItem('optix_organization_id');
+                const timestamp = localStorage.getItem('optix_auth_timestamp');
+                
+                const storageResult = {
+                    token: token ? `${token.substring(0, 10)}...` : null,
+                    organizationId: orgId,
+                    timestamp: timestamp,
+                    hasToken: !!token,
+                    hasOrgId: !!orgId,
+                    hasTimestamp: !!timestamp
+                };
+                
+                const success = !!(token && orgId && timestamp);
+                addResult('Storage Test', success, storageResult, null);
+                console.log('Storage test result:', storageResult);
+                
+            } catch (error) {
+                addResult('Storage Test', false, null, error.message);
+                console.error('Storage test error:', error);
+            }
+        }
+
+        async function testAPIWithAuth() {
+            console.log('Testing API with authentication...');
+            
+            try {
+                const token = document.getElementById('test-token').value.trim();
+                
+                if (!token) {
+                    addResult('API Test', false, null, 'No token provided');
+                    return;
+                }
+                
+                const apiUrl = 'https://api.optixapp.com/graphql';
+                const query = `
+                    query GetOrgIDandName {
+                        organization {
+                            organization_id
+                            name
+                            square_logo {
+                                url
+                            }
+                        }
+                    }
+                `;
+                
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Accept': '*/*',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin,
+                        'Referer': window.location.href,
+                        'User-Agent': navigator.userAgent,
+                        'authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        query: query
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok && data.data && data.data.organization) {
+                    addResult('API Test', true, data, null);
+                    console.log('API test successful:', data);
+                } else {
+                    addResult('API Test', false, null, `API Error: ${JSON.stringify(data)}`);
+                    console.error('API test failed:', data);
+                }
+                
+            } catch (error) {
+                addResult('API Test', false, null, error.message);
+                console.error('API test error:', error);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('AuthService test page loaded');
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,642 @@
+extend type Query {
+    "List all automations associated with the current organization"
+    workflows(
+        organization_id: ID! @require(visibility: "legacy")
+
+        "Number of elements per page"
+        limit: Int = 100
+
+        "Page"
+        page: Int = 1
+
+        "Order by"
+        order: WorkflowOrder
+
+        "Filter the list"
+        search: WorkflowSearchInput
+    ): WorkflowPagination! @require(visibility: "authenticated")
+
+    "Get one specific automation"
+    workflow(workflow_id: ID!): Workflow @require(visibility: "authenticated")
+
+    "List all available steps for automations"
+    workflowAvailableSteps(
+        organization_id: ID! @require(visibility: "legacy")
+    ): [WorkflowStep!]!
+
+    "List the automation enrollments"
+    workflowEnrollments(
+        organization_id: ID! @require(visibility: "legacy")
+
+        "Number of elements per page"
+        limit: Int = 100
+
+        "Page"
+        page: Int = 1
+
+        "Order by"
+        order: WorkflowEnrollmentOrder
+
+        "Filter the list"
+        search: WorkflowEnrollmentSearchInput
+    ): WorkflowEnrollmentPagination! @require(visibility: "authenticated")
+
+    "List the recommended automation recipes"
+    workflowRecipes(
+        organization_id: ID! @require(visibility: "legacy")
+        recipe_type: [WorkflowRecipeType!]
+    ): [WorkflowRecipe!]! @require(visibility: "authenticated")
+
+    workflowEmailDraft(
+        organization_id: ID! @require(visibility: "legacy")
+
+        input: WorkflowActionEmailInput!
+        trigger_type: WorkflowTriggerType!
+    ): WorkflowEmailDraft! @require(visibility: "authenticated")
+
+    workflowDocDraft(
+        organization_id: ID! @require(visibility: "legacy")
+
+        input: WorkflowActionDocToSignInput!
+        trigger_type: WorkflowTriggerType!
+    ): DocumentDraft! @require(visibility: "authenticated")
+}
+
+extend type Mutation {
+    workflowsCommit(
+        organization_id: ID! @require(visibility: "legacy")
+
+        workflow: WorkflowSearchInput
+        input: WorkflowInput @spread
+        delete: Boolean = false
+    ): BulkMutationResponse! @require(visibility: "authenticated")
+
+    workflowUnenroll(
+        workflow_enrollment_id: ID!
+    ): WorkflowEnrollment! @require(visibility: "authenticated")
+
+    "Enroll a manual automation"
+    workflowEnroll(
+        workflow_id: ID!
+        account_id: [ID!]
+        account_plan: AccountPlanSearchInput
+    ): BulkMutationResponse! @require(visibility: "authenticated")
+
+    workflowEnrollmentRetry(
+        organization_id: ID! @require(visibility: "legacy")
+
+        workflow_enrollment: WorkflowEnrollmentSearchInput @spread
+    ): BulkMutationResponse! @require(visibility: "authenticated")
+
+    "Send a test email to the current user's address using dummy user and data"
+    workflowEmailSendTest(
+        organization_id: ID! @require(visibility: "legacy")
+
+        input: WorkflowActionEmailInput!
+        trigger_type: WorkflowTriggerType!
+    ): String! @require(visibility: "authenticated")
+
+    "Send a test document for signing"
+    workflowDocSendTest(
+        organization_id: ID! @require(visibility: "legacy")
+
+        input: WorkflowActionDocToSignInput!
+        trigger_type: WorkflowTriggerType!
+    ): String! @require(visibility: "authenticated")
+
+    workflowVersionRollback(
+        organization_id: ID! @require(visibility: "legacy")
+
+        workflow_version_id: ID!
+    ): Workflow! @require(visibility: "authenticated")
+}
+
+"Order of the automations"
+enum WorkflowOrder {
+    "Sort by name ASC"
+    NAME_ASC @enum(value: "workflows.name ASC")
+
+    "Sort by name DESC"
+    NAME_DESC @enum(value: "workflows.name DESC")
+
+    "Sort by trigger type ASC"
+    TRIGGER_TYPE_ASC @enum(value: "workflows.trigger_type ASC")
+
+    "Sort by trigger type DESC"
+    TRIGGER_TYPE_DESC @enum(value: "workflows.trigger_type DESC")
+
+    "Sort by creation date ASC"
+    CREATED_TIMESTAMP_ASC @enum(value: "workflows.created_timestamp ASC")
+
+    "Sort by creation date DESC"
+    CREATED_TIMESTAMP_DESC @enum(value: "workflows.created_timestamp DESC")
+
+    "Sort by last edit date ASC"
+    UPDATED_TIMESTAMP_ASC @enum(value: "workflows.updated_timestamp ASC")
+
+    "Sort by last edit date DESC"
+    UPDATED_TIMESTAMP_DESC @enum(value: "workflows.updated_timestamp DESC")
+
+    "Sort by latest enrollment date ASC"
+    LATEST_ENROLLMENT_TIMESTAMP_ASC @enum(value: "workflows.latest_enrollment_timestamp ASC")
+
+    "Sort by latest enrollment date DESC"
+    LATEST_ENROLLMENT_TIMESTAMP_DESC @enum(value: "workflows.latest_enrollment_timestamp DESC")
+
+    "Sort by enrollment count ASC"
+    ENROLLMENT_COUNT_ASC @enum(value: "enrollments_count ASC")
+
+    "Sort by enrollment count DESC"
+    ENROLLMENT_COUNT_DESC @enum(value: "enrollments_count DESC")
+}
+
+"Order of the automation enrollments"
+enum WorkflowEnrollmentOrder {
+    "Sort by enrollment date ASC"
+    CREATED_TIMESTAMP_ASC @enum(value: "workflow_enrollments.created_timestamp ASC")
+
+    "Sort by enrollment date DESC"
+    CREATED_TIMESTAMP_DESC @enum(value: "workflow_enrollments.created_timestamp DESC")
+}
+
+input WorkflowSearchInput {
+    "Filter by automation ID"
+    workflow_id: [ID!]
+
+    "Search by name or description"
+    search: String
+
+    "Filter by trigger type"
+    trigger_type: [WorkflowTriggerType!]
+
+    "Filter by status"
+    is_paused: Boolean
+
+    "Filter default workflows"
+    is_default: Boolean
+
+    "Filter by label"
+    label_id: [ID!]
+}
+
+"Automation pagination wrapper"
+type WorkflowPagination {
+    "The number of available elements"
+    total: Int!
+
+    "If nothing found, try without any filters applied"
+    found_without_filters: Boolean!
+    total_without_filters: Int! @deprecated(reason: "Replaced by found_without_filters")
+
+    "List of automations"
+    data: [Workflow!]!
+}
+
+type Workflow {
+    workflow_id: ID!
+
+    name: String!
+    description: String
+    is_paused: Boolean!
+    is_default: Boolean! @with(relation: "currentVersion")
+    trigger_type: WorkflowTriggerType!
+    labels: [Label!]! @belongsToMany
+
+    "Type of an automation recipe"
+    recipe_type: WorkflowRecipeType
+
+    current_version: WorkflowVersion! @hasOne(relation: "currentVersion")
+    versions: [WorkflowVersion!]! @hasMany(relation: "versions")
+    latest_enrollment_timestamp: Int
+    enrollment_count: Int! @count(relation: "enrollments")
+    # For the details side panel: only a few users, and only available in `workflow` query
+    some_enrolled_users: [User!] @rename(attribute: "someEnrolledUsers")
+    created_by_user: User! @belongsTo(relation: "createdByUser")
+    created_timestamp: Int!
+    updated_timestamp: Int!
+    is_deleted: Boolean!
+}
+
+type WorkflowRecipe {
+    name: String
+    is_paused: Boolean!
+    is_used: Boolean!
+
+    "Type of an automation recipe"
+    recipe_type: WorkflowRecipeType!
+    requires_automations_plus: Boolean! @method(name: "requiresAutomationsPlus")
+
+    has_default_condition: Boolean!
+    trigger_type: WorkflowTriggerType!
+    steps: [WorkflowStep!]!
+
+    "Automation based on the recipe"
+    workflow: Workflow
+}
+
+input WorkflowInput {
+    name: String
+    description: String
+    is_paused: Boolean
+    is_new_version: Boolean = true
+    label_id: [ID!]
+    steps: [WorkflowStepInput!]
+    has_default_condition: Boolean
+    version_name: String
+    recipe_type: WorkflowRecipeType
+}
+
+type WorkflowVersion {
+    workflow_version_id: ID!
+    number: Int!
+    name: String
+    is_current: Boolean!
+    has_default_condition: Boolean!
+    trigger_type: WorkflowTriggerType!
+    steps: [WorkflowStep!]! @method(name: "getSteps") @with(relation: "steps")
+    created_by_user: User! @belongsTo(relation: "createdByUser")
+    created_timestamp: Int!
+    updated_timestamp: Int!
+}
+
+# Matches WorkflowStepInterface PHP interface
+interface WorkflowStep {
+    workflow_step_id: ID!
+    requires_automations_plus: Boolean!
+}
+
+input WorkflowStepInput {
+    # Trigger
+    trigger_type: WorkflowTriggerType
+
+    # Condition, see also EvaluableConditionInput
+    condition_operation: ConditionOperation @rename(attribute: "operation")
+    condition_parameters: [ConditionParameterInput!] @rename(attribute: "parameters")
+    conditions: [WorkflowStepInput!]
+
+    # Delay
+    delay_for: DurationInput
+    delay_until: ConditionParameterInput
+
+    # Action
+    action_type: WorkflowActionType
+    add_allowance: WorkflowActionAllowanceInput
+    add_invoice_item: WorkflowActionInvoiceItemInput
+    add_to_group_conversation: WorkflowActionGroupConversationInput
+    change_account_type: WorkflowActionAccountTypeInput
+    change_user_status: WorkflowActionUserStatusInput
+    create_task: WorkflowActionTaskInput
+    post_to_feed: WorkflowActionPostInput
+    send_doc_to_sign: WorkflowActionDocToSignInput
+    send_email: WorkflowActionEmailInput
+    send_message: WorkflowActionMessageInput
+}
+
+type WorkflowTrigger implements WorkflowStep {
+    workflow_step_id: ID!
+    trigger_type: WorkflowTriggerType!
+    requires_automations_plus: Boolean! @method(name: "requiresAutomationsPlus")
+
+    "Variables provided by the trigger"
+    variables: [EvaluableVariable!]!
+
+    default_condition: WorkflowCondition
+}
+
+# See EvaluableCondition
+type WorkflowCondition implements WorkflowStep {
+    workflow_step_id: ID!
+    requires_automations_plus: Boolean! @method(name: "requiresAutomationsPlus")
+
+    condition_operation: ConditionOperation! @rename(attribute: "operation")
+    condition_parameters: [ConditionParameter!] @rename(attribute: "parameters")
+    conditions: [WorkflowCondition!]
+}
+
+type WalletAllowanceVariableParameters {
+    unit_id: ID
+    access_template_id: ID
+}
+
+input WalletAllowanceVariableParametersInput {
+    unit_id: ID!
+    access_template_id: ID!
+}
+
+type WorkflowDelay implements WorkflowStep {
+    workflow_step_id: ID!
+    requires_automations_plus: Boolean! @method(name: "requiresAutomationsPlus")
+
+    "Fixed delay from the moment the execution reaches this step (minutes, hours, days, weeks, or months)"
+    delay_for: Duration
+
+    "Dynamic delay until the moment defined by a fixed value, a variable, or a user property"
+    delay_until: ConditionParameter
+}
+
+type WorkflowAction implements WorkflowStep {
+    workflow_step_id: ID!
+    action_type: WorkflowActionType!
+    requires_automations_plus: Boolean! @method(name: "requiresAutomationsPlus")
+
+    add_allowance: WorkflowActionAllowance
+    add_invoice_item: WorkflowActionInvoiceItem
+    add_to_group_conversation: WorkflowActionGroupConversation
+    change_account_type: WorkflowActionAccountType
+    change_user_status: WorkflowActionUserStatus
+    create_task: WorkflowActionTask
+    post_to_feed: WorkflowActionPost
+    send_doc_to_sign: WorkflowActionDocToSign
+    send_email: WorkflowActionEmail
+    send_message: WorkflowActionMessage
+}
+
+type WorkflowActionAllowance {
+    access_template_id: ID!
+    unlimited_allowance: Boolean
+    allowance: Float
+    allowance_unit_id: ID
+    allowance_expire_days: Int
+    due_on_following_billing_date: Boolean
+    unit_amount: Float
+}
+input WorkflowActionAllowanceInput {
+    access_template_id: ID!
+    unlimited_allowance: Boolean
+    allowance: Float
+    allowance_unit_id: ID
+    allowance_expire_days: Int
+    due_on_following_billing_date: Boolean
+    unit_amount: Float
+}
+
+type WorkflowActionGroupConversation {
+    target_group_conversation_id: ID!
+    target_team_admins: Boolean
+}
+input WorkflowActionGroupConversationInput {
+    target_group_conversation_id: ID!
+    target_team_admins: Boolean
+}
+
+type WorkflowActionTask {
+    name: String!
+    description: String
+    assignee_user_id: ID
+    set_assignee_primary_location_admin: Boolean
+    set_no_due_timestamp: Boolean
+    to_due: Duration
+}
+
+input WorkflowActionTaskInput {
+    name: String!
+    description: String
+    assignee_user_id: ID
+    set_assignee_primary_location_admin: Boolean
+    set_no_due_timestamp: Boolean
+    to_due: DurationInput
+}
+
+type WorkflowActionUserStatus {
+    status: AccountStatus
+}
+
+input WorkflowActionUserStatusInput {
+    status: AccountStatus
+}
+
+type WorkflowActionAccountType {
+    type_label_id: ID!
+}
+
+input WorkflowActionAccountTypeInput {
+    type_label_id: ID!
+}
+
+type WorkflowActionInvoiceItem {
+    # InvoiceItemInput
+    name: String
+    description: String
+    tax_rate: Float
+    inclusive_tax_rate: Float
+    unit_amount: Float
+    quantity: Float
+
+    due_on_following_billing_date: Boolean!
+}
+
+input WorkflowActionInvoiceItemInput {
+    # InvoiceItemInput
+    name: String
+    description: String
+    tax_rate: Float
+    inclusive_tax_rate: Float
+    unit_amount: Float
+    quantity: Float
+
+    due_on_following_billing_date: Boolean!
+}
+
+type WorkflowActionEmail {
+    subject: String
+    body: String!
+
+    "Send an email to a specific admin; otherwise, to the account that triggered an automation"
+    target_admin_user_id: ID
+
+    "When sending an email to a team, the recipients are only team admins; otherwise, all team members"
+    target_team_admins: Boolean
+
+    notification_type: String
+
+    mail_provider_credentials_id: ID
+}
+
+input WorkflowActionEmailInput {
+    subject: String
+    body: String!
+
+    "Send an email to a specific admin; otherwise, to the account that triggered an automation"
+    target_admin_user_id: ID
+
+    "When sending an email to a team, the recipients are only team admins; otherwise, all team members"
+    target_team_admins: Boolean
+
+    notification_type: String
+
+    mail_provider_credentials_id: ID
+}
+
+type WorkflowActionMessage {
+    "Send a message from a specific admin; otherwise, from the account's primary location admin"
+    from_admin_user_id: ID
+
+    "When sending a message to a team, the recipients are only team admins; otherwise, all team members"
+    target_team_admins: Boolean
+
+    "Send a message to a specific admin; otherwise, to the account that triggered an automation"
+    target_admin_user_id: ID
+
+    "Send a message to an existing group conversation; otherwise, to the account that triggered an automation"
+    target_group_conversation_id: ID
+
+    message: String!
+}
+
+input WorkflowActionMessageInput {
+    "Send a message from a specific admin; otherwise, from the account's primary location admin"
+    from_admin_user_id: ID
+
+    "When sending a message to a team, the recipients are only team admins; otherwise, all team members"
+    target_team_admins: Boolean
+
+    "Send a message to a specific admin; otherwise, to the account that triggered an automation"
+    target_admin_user_id: ID
+
+    "Send a message to an existing group conversation; otherwise, to the account that triggered an automation"
+    target_group_conversation_id: ID
+
+    message: String!
+}
+
+type WorkflowActionPost {
+    message: String!
+    created_by_admin_id: ID
+    image_url: String
+    location_id: [ID!]
+    in_all_locations: Boolean
+    send_notification: Boolean
+}
+
+input WorkflowActionPostInput {
+    message: String!
+    created_by_admin_id: ID
+    image_url: String
+    location_id: [ID!]
+    in_all_locations: Boolean = true
+    send_notification: Boolean = false
+}
+
+type WorkflowActionDocToSign {
+    name: String!
+    contents_url: String
+    contents_origin_name: String
+    contents: String
+    include_entity_summary: Boolean!
+    include_entity_terms: Boolean!
+    admin_signer_user_id: ID
+    primary_location_admin_is_signer: Boolean
+    payer_is_signer: Boolean!
+}
+
+input WorkflowActionDocToSignInput {
+    name: String!
+    contents_url: String
+    contents_origin_name: String
+    contents: String
+    include_entity_summary: Boolean!
+    include_entity_terms: Boolean!
+    admin_signer_user_id: ID
+    primary_location_admin_is_signer: Boolean
+    payer_is_signer: Boolean!
+}
+
+# TODO: type WorkflowDecision/WorkflowBranching implements WorkflowStep
+
+type WorkflowEnrollmentPagination {
+    "The number of available elements"
+    total: Int!
+
+    "List of automation enrollments"
+    data: [WorkflowEnrollment!]!
+}
+
+type WorkflowEnrollment {
+    workflow_enrollment_id: ID!
+    version: WorkflowVersion! @belongsTo
+    workflow: Workflow! @belongsTo
+    account: Account @belongsTo
+    status: WorkflowEnrollmentStatus!
+    trigger_metadata: WorkflowEnrollmentTriggerMetadata
+        @method(name: "getTriggerMetadata")
+        @with(relation: "organization.admins.user")
+        @with(relation: "account.member.createdByUser")
+        @with(relation: "account.member.createdByApp")
+        @with(relation: "account.invoices")
+        @with(relation: "account.productSales")
+        @with(relation: "account.user")
+        @with(relation: "account.checkins")
+    steps_metadata: [WorkflowEnrollmentStepMetadata!]! @hasMany(relation: "stepsMetadata")
+    created_timestamp: Int!
+    updated_timestamp: Int!
+    completed_timestamp: Int
+    stopped_timestamp: Int
+    unenrolled_timestamp: Int
+    error_timestamp: Int
+    last_error: String
+}
+
+"Metadata for a given enrollment step"
+type WorkflowEnrollmentStepMetadata {
+    "Related step"
+    workflow_step_id: ID!
+
+    "Related overridden step"
+    workflow_overridden_step_id: ID
+
+    "When the execution of the step started"
+    started_timestamp: Int!
+
+    "For delay steps, when the delay is expected to end"
+    delay_until_timestamp: Int
+
+    "When the execution of the step completed"
+    completed_timestamp: Int
+
+    "Notes about the execution of the step: errors, partial completion, etc."
+    log: String
+
+    step: WorkflowStep @method(name: "getStep") @with(relation: "workflowStep") @with(relation: "workflowOverriddenStep")
+}
+
+"Metadata for an enrollment trigger"
+type WorkflowEnrollmentTriggerMetadata {
+    object_type: ObjectType
+    object_id: ID
+    title: String!
+}
+
+input WorkflowEnrollmentSearchInput {
+    "Filter by automation ID"
+    workflow_id: [ID!]
+
+    "Filter by automation version ID"
+    workflow_version_id: [ID!]
+
+    "Filter by enrollment ID"
+    workflow_enrollment_id: [ID!]
+
+    "Filter by enrolled account ID"
+    account_id: [ID!]
+
+    "Filter by status"
+    status: [WorkflowEnrollmentStatus!]
+
+    "Search by account name"
+    search: String
+
+    "Enrollments created after the timestamp (inclusive)"
+    created_timestamp_from: Int
+
+    "Enrollments created before the timestamp (inclusive)"
+    created_timestamp_to: Int
+}
+
+type WorkflowEmailDraft {
+    subject: String!
+    body: String!
+    from_name: String
+    from_address: String
+    reply_to_name: String
+    reply_to_address: String
+}

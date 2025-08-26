@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vue Test</title>
+    <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://unpkg.com/vue-router@3.5.3/dist/vue-router.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        #app {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 0;
+        }
+        .test-button:hover {
+            background-color: #005a87;
+        }
+        .debug-info {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>Vue Test Page</h1>
+        <div class="debug-info">
+            <strong>Debug Info:</strong><br>
+            Current URL: {{ currentUrl }}<br>
+            Vue Version: {{ vueVersion }}<br>
+            Router Working: {{ routerWorking }}
+        </div>
+        
+        <router-view></router-view>
+        
+        <div style="margin-top: 20px;">
+            <button class="test-button" @click="testVue">Test Vue Click</button>
+            <button class="test-button" @click="testRouter">Test Router</button>
+            <button class="test-button" @click="showDebug">Show Debug Info</button>
+        </div>
+        
+        <div v-if="debugInfo" class="debug-info">
+            <strong>Debug Output:</strong><br>
+            <pre>{{ debugInfo }}</pre>
+        </div>
+    </div>
+
+    <script>
+        // Simple test component
+        const TestComponent = {
+            template: `
+                <div>
+                    <h2>Test Component Loaded!</h2>
+                    <p>If you can see this, Vue components are working.</p>
+                    <p>Component mounted at: {{ mountTime }}</p>
+                </div>
+            `,
+            data() {
+                return {
+                    mountTime: new Date().toISOString()
+                };
+            },
+            mounted() {
+                console.log('TestComponent mounted successfully');
+            }
+        };
+
+        // Router setup
+        const routes = [
+            { path: '/', component: TestComponent },
+            { path: '/test', component: TestComponent }
+        ];
+
+        const router = new VueRouter({
+            mode: 'history',
+            routes
+        });
+
+        // Main Vue app
+        new Vue({
+            el: '#app',
+            router,
+            data: {
+                currentUrl: window.location.href,
+                vueVersion: Vue.version,
+                routerWorking: false,
+                debugInfo: null
+            },
+            mounted() {
+                console.log('Vue app mounted successfully!');
+                this.routerWorking = true;
+                this.showDebug();
+            },
+            methods: {
+                testVue() {
+                    alert('Vue is working! Click time: ' + new Date().toISOString());
+                },
+                testRouter() {
+                    this.$router.push('/test');
+                },
+                showDebug() {
+                    this.debugInfo = {
+                        vueVersion: Vue.version,
+                        routerWorking: this.routerWorking,
+                        currentRoute: this.$route.path,
+                        timestamp: new Date().toISOString(),
+                        userAgent: navigator.userAgent
+                    };
+                }
+            }
+        });
+    </script>
+</body>
+</html>

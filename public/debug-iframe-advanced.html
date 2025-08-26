@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Iframe Debug - Optix Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .debug-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .debug-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .debug-content {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #005a87;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Advanced Iframe Debug - Optix Integration</h1>
+        <p>This page looks for alternative authentication methods that Optix might be using.</p>
+        
+        <div class="debug-section">
+            <div class="debug-title">🌐 Parent Window Communication</div>
+            <div class="debug-content" id="parent-communication"></div>
+            <button class="button" onclick="testParentCommunication()">Test Parent Communication</button>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">🍪 Cookies & Local Storage</div>
+            <div class="debug-content" id="storage-info"></div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">🔧 Optix Global Objects</div>
+            <div class="debug-content" id="optix-globals"></div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">📡 Network Requests</div>
+            <div class="debug-content" id="network-info"></div>
+            <button class="button" onclick="testNetworkRequests()">Test Network Requests</button>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">🔐 Authentication Methods</div>
+            <div class="debug-content" id="auth-methods"></div>
+            <button class="button" onclick="testAuthMethods()">Test Auth Methods</button>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">📋 All Available Properties</div>
+            <div class="debug-content" id="all-properties"></div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">🎯 Recommendations</div>
+            <div class="debug-content" id="recommendations"></div>
+        </div>
+    </div>
+
+    <script>
+        let messageLog = [];
+
+        // Listen for postMessage from parent
+        window.addEventListener('message', function(event) {
+            console.log('Received message from parent:', event);
+            messageLog.push({
+                timestamp: new Date().toISOString(),
+                origin: event.origin,
+                data: event.data,
+                source: event.source
+            });
+            updateParentCommunication();
+        });
+
+        function updateParentCommunication() {
+            const parentInfo = {
+                canAccessParent: false,
+                parentOrigin: null,
+                messageLog: messageLog,
+                parentWindow: null
+            };
+
+            try {
+                // Try to access parent window
+                if (window.parent && window.parent !== window) {
+                    parentInfo.canAccessParent = true;
+                    parentInfo.parentOrigin = window.parent.location.origin;
+                    parentInfo.parentWindow = 'Accessible';
+                }
+            } catch (e) {
+                parentInfo.parentWindow = 'Blocked by CORS: ' + e.message;
+            }
+
+            document.getElementById('parent-communication').textContent = JSON.stringify(parentInfo, null, 2);
+        }
+
+        function testParentCommunication() {
+            console.log('Testing parent communication...');
+            
+            try {
+                // Try to send a message to parent
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'AUTH_REQUEST',
+                        action: 'getAuthToken',
+                        timestamp: new Date().toISOString()
+                    }, '*');
+                    console.log('Sent auth request to parent');
+                }
+            } catch (e) {
+                console.error('Failed to send message to parent:', e);
+            }
+
+            // Also try to request auth info
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'DEBUG_REQUEST',
+                        action: 'getDebugInfo',
+                        timestamp: new Date().toISOString()
+                    }, '*');
+                    console.log('Sent debug request to parent');
+                }
+            } catch (e) {
+                console.error('Failed to send debug request:', e);
+            }
+        }
+
+        function collectStorageInfo() {
+            const storageInfo = {
+                cookies: document.cookie,
+                localStorage: {},
+                sessionStorage: {},
+                indexedDB: 'Available: ' + !!window.indexedDB
+            };
+
+            // Check localStorage
+            try {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.toLowerCase().includes('token') || 
+                               key.toLowerCase().includes('auth') || 
+                               key.toLowerCase().includes('optix'))) {
+                        storageInfo.localStorage[key] = localStorage.getItem(key);
+                    }
+                }
+            } catch (e) {
+                storageInfo.localStorage = 'Error: ' + e.message;
+            }
+
+            // Check sessionStorage
+            try {
+                for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    if (key && (key.toLowerCase().includes('token') || 
+                               key.toLowerCase().includes('auth') || 
+                               key.toLowerCase().includes('optix'))) {
+                        storageInfo.sessionStorage[key] = sessionStorage.getItem(key);
+                    }
+                }
+            } catch (e) {
+                storageInfo.sessionStorage = 'Error: ' + e.message;
+            }
+
+            document.getElementById('storage-info').textContent = JSON.stringify(storageInfo, null, 2);
+        }
+
+        function collectOptixGlobals() {
+            const optixGlobals = {};
+
+            // Check for Optix-related global objects
+            const optixObjects = [
+                'optix', 'Optix', 'OPTIX',
+                'optix_env', 'optixEnv', 'OPTIX_ENV',
+                'optixAuth', 'optix_auth', 'OPTIX_AUTH',
+                'optixToken', 'optix_token', 'OPTIX_TOKEN',
+                'optixApi', 'optix_api', 'OPTIX_API',
+                'optixClient', 'optix_client', 'OPTIX_CLIENT'
+            ];
+
+            optixObjects.forEach(obj => {
+                if (window[obj] !== undefined) {
+                    optixGlobals[obj] = window[obj];
+                }
+            });
+
+            // Also check for any properties that contain 'optix'
+            for (const prop in window) {
+                if (prop.toLowerCase().includes('optix')) {
+                    optixGlobals[prop] = window[prop];
+                }
+            }
+
+            document.getElementById('optix-globals').textContent = JSON.stringify(optixGlobals, null, 2);
+        }
+
+        function testNetworkRequests() {
+            console.log('Testing network requests...');
+            
+            const networkInfo = {
+                optixApiUrl: window.optix_env?.conf?.optix_v2_url || 'Not configured',
+                testResults: []
+            };
+
+            // Test if we can make requests to Optix API
+            if (networkInfo.optixApiUrl !== 'Not configured') {
+                const apiUrl = `${networkInfo.optixApiUrl}/graphql`;
+                
+                fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        query: '{ __schema { types { name } } }'
+                    })
+                })
+                .then(response => {
+                    networkInfo.testResults.push({
+                        url: apiUrl,
+                        status: response.status,
+                        statusText: response.statusText,
+                        headers: Object.fromEntries(response.headers.entries())
+                    });
+                    document.getElementById('network-info').textContent = JSON.stringify(networkInfo, null, 2);
+                })
+                .catch(error => {
+                    networkInfo.testResults.push({
+                        url: apiUrl,
+                        error: error.message
+                    });
+                    document.getElementById('network-info').textContent = JSON.stringify(networkInfo, null, 2);
+                });
+            } else {
+                document.getElementById('network-info').textContent = JSON.stringify(networkInfo, null, 2);
+            }
+        }
+
+        function testAuthMethods() {
+            console.log('Testing authentication methods...');
+            
+            const authMethods = {
+                postMessage: 'Testing...',
+                cookies: document.cookie.includes('token') || document.cookie.includes('auth'),
+                localStorage: false,
+                sessionStorage: false,
+                globalVariables: false,
+                networkAuth: false
+            };
+
+            // Check localStorage for auth tokens
+            try {
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && (key.toLowerCase().includes('token') || key.toLowerCase().includes('auth'))) {
+                        authMethods.localStorage = true;
+                        break;
+                    }
+                }
+            } catch (e) {
+                authMethods.localStorage = 'Error: ' + e.message;
+            }
+
+            // Check sessionStorage for auth tokens
+            try {
+                for (let i = 0; i < sessionStorage.length; i++) {
+                    const key = sessionStorage.key(i);
+                    if (key && (key.toLowerCase().includes('token') || key.toLowerCase().includes('auth'))) {
+                        authMethods.sessionStorage = true;
+                        break;
+                    }
+                }
+            } catch (e) {
+                authMethods.sessionStorage = 'Error: ' + e.message;
+            }
+
+            // Check for global auth variables
+            const authGlobals = ['token', 'auth', 'authentication', 'apiKey', 'api_key'];
+            authGlobals.forEach(global => {
+                if (window[global] !== undefined) {
+                    authMethods.globalVariables = true;
+                }
+            });
+
+            document.getElementById('auth-methods').textContent = JSON.stringify(authMethods, null, 2);
+        }
+
+        function collectAllProperties() {
+            const allProperties = {};
+            
+            // Collect all enumerable properties
+            for (const prop in window) {
+                try {
+                    const value = window[prop];
+                    if (value !== null && typeof value === 'object') {
+                        allProperties[prop] = typeof value;
+                    } else if (typeof value === 'string' && value.length < 100) {
+                        allProperties[prop] = value;
+                    } else if (typeof value === 'function') {
+                        allProperties[prop] = 'function';
+                    } else {
+                        allProperties[prop] = typeof value;
+                    }
+                } catch (e) {
+                    allProperties[prop] = 'Error: ' + e.message;
+                }
+            }
+
+            document.getElementById('all-properties').textContent = JSON.stringify(allProperties, null, 2);
+        }
+
+        function generateRecommendations() {
+            const recommendations = [
+                "1. Check if Optix uses postMessage for authentication",
+                "2. Look for authentication in localStorage/sessionStorage",
+                "3. Check for global variables set by Optix",
+                "4. Verify if cookies are used for authentication",
+                "5. Check Optix documentation for iframe authentication",
+                "6. Look for authentication headers in network requests",
+                "7. Check if Optix provides a JavaScript SDK",
+                "8. Verify if authentication is handled server-side"
+            ];
+
+            document.getElementById('recommendations').textContent = recommendations.join('\n');
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            updateParentCommunication();
+            collectStorageInfo();
+            collectOptixGlobals();
+            collectAllProperties();
+            generateRecommendations();
+            console.log('Advanced iframe debug page loaded');
+        });
+    </script>
+</body>
+</html>

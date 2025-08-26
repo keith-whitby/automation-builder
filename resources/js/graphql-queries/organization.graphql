@@ -1,0 +1,9 @@
+query GetOrgIDandName {
+  organization {
+    organization_id
+    name
+    square_logo {
+      url
+    }
+  }
+}

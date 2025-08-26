@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Basic Vue Component Test</title>
+    <script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
+    <script src="https://unpkg.com/vue-router@3.5.3/dist/vue-router.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        #app {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 10px 5px;
+        }
+        .test-button:hover {
+            background-color: #005a87;
+        }
+        .debug-info {
+            background-color: #f0f0f0;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+            font-family: monospace;
+            font-size: 12px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>Basic Vue Component Test</h1>
+        
+        <div class="debug-info">
+            <strong>Test Status:</strong><br>
+            Vue Version: {{ vueVersion }}<br>
+            Router Working: {{ routerWorking }}<br>
+            Current Route: {{ currentRoute }}
+        </div>
+        
+        <router-view></router-view>
+        
+        <div style="margin-top: 20px;">
+            <button class="test-button" @click="testBasicComponent">Test Basic Component</button>
+            <button class="test-button" @click="testAuthHelpers">Test Auth Helpers</button>
+            <button class="test-button" @click="testAuthService">Test Auth Service</button>
+            <button class="test-button" @click="clearResults">Clear Results</button>
+        </div>
+        
+        <div v-if="testResults.length > 0" style="margin-top: 20px;">
+            <h3>Test Results:</h3>
+            <div v-for="(result, index) in testResults" :key="index" 
+                 :class="['debug-info', result.success ? 'success' : 'error']">
+                <strong>{{ result.test }}:</strong> {{ result.message }}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Mock auth helpers (simulating our actual helpers)
+        const authHelpers = {
+            extractAuthToken: function(paramName = 'token') {
+                const urlParams = new URLSearchParams(window.location.search);
+                const token = urlParams.get(paramName);
+                console.log('extractAuthToken called with paramName:', paramName, 'result:', token);
+                return token;
+            },
+            extractAuthTokenFromHash: function(paramName = 'token') {
+                const hash = window.location.hash.substring(1);
+                const urlParams = new URLSearchParams(hash);
+                const token = urlParams.get(paramName);
+                console.log('extractAuthTokenFromHash called with paramName:', paramName, 'result:', token);
+                return token;
+            },
+            validateTokenFormat: function(token) {
+                if (!token) return false;
+                if (typeof token !== 'string') return false;
+                if (token.length < 10) return false;
+                return true;
+            },
+            getValidatedAuthToken: function(paramName = 'token') {
+                const token = this.extractAuthToken(paramName) || this.extractAuthTokenFromHash(paramName);
+                return this.validateTokenFormat(token) ? token : null;
+            }
+        };
+
+        // Mock auth service (simulating our actual service)
+        const authService = {
+            token: null,
+            isValid: false,
+            organization: null,
+            
+            initialize: function() {
+                console.log('AuthService.initialize called');
+                this.token = authHelpers.getValidatedAuthToken();
+                this.isValid = !!this.token;
+                console.log('AuthService initialized with token:', this.token, 'isValid:', this.isValid);
+                return this.isValid;
+            },
+            
+            getToken: function() {
+                return this.token;
+            },
+            
+            isValid: function() {
+                return this.isValid;
+            },
+            
+            setOrganization: function(org) {
+                this.organization = org;
+                console.log('AuthService organization set:', org);
+            }
+        };
+
+        // Test component (simulating our BasicTestCanvas)
+        const BasicTestCanvas = {
+            template: `
+                <div>
+                    <h2>Basic Test Canvas</h2>
+                    <p>If you can see this, Vue components are working!</p>
+                    <p>Current URL: {{ currentUrl }}</p>
+                    <p>Component mounted at: {{ mountTime }}</p>
+                    <div v-if="authToken">
+                        <p><strong>Auth Token Found:</strong> {{ authToken.substring(0, 10) }}...</p>
+                    </div>
+                    <div v-else>
+                        <p><strong>No Auth Token Found</strong></p>
+                    </div>
+                </div>
+            `,
+            data() {
+                return {
+                    currentUrl: window.location.href,
+                    mountTime: new Date().toISOString(),
+                    authToken: null
+                };
+            },
+            mounted() {
+                console.log('BasicTestCanvas mounted successfully');
+                this.authToken = authHelpers.getValidatedAuthToken();
+            }
+        };
+
+        // Router setup
+        const routes = [
+            { path: '/', component: BasicTestCanvas },
+            { path: '/test', component: BasicTestCanvas }
+        ];
+
+        const router = new VueRouter({
+            mode: 'history',
+            routes
+        });
+
+        // Main Vue app
+        new Vue({
+            el: '#app',
+            router,
+            data: {
+                vueVersion: Vue.version,
+                routerWorking: false,
+                currentRoute: '/',
+                testResults: []
+            },
+            mounted() {
+                console.log('Main Vue app mounted successfully!');
+                this.routerWorking = true;
+                this.currentRoute = this.$route.path;
+            },
+            methods: {
+                testBasicComponent() {
+                    try {
+                        const component = new Vue({
+                            template: '<div>Test component works!</div>'
+                        });
+                        component.$mount();
+                        this.addTestResult('Basic Component', 'Vue component creation and mounting works', true);
+                        component.$destroy();
+                    } catch (error) {
+                        this.addTestResult('Basic Component', 'Error: ' + error.message, false);
+                    }
+                },
+                
+                testAuthHelpers() {
+                    try {
+                        // Test with URL parameters
+                        const testUrl = 'http://localhost:8000/test?token=test123456789';
+                        const originalLocation = window.location.href;
+                        
+                        // Mock the URL for testing
+                        Object.defineProperty(window, 'location', {
+                            value: new URL(testUrl),
+                            writable: true
+                        });
+                        
+                        const token = authHelpers.getValidatedAuthToken();
+                        const isValid = authHelpers.validateTokenFormat(token);
+                        
+                        // Restore original location
+                        Object.defineProperty(window, 'location', {
+                            value: new URL(originalLocation),
+                            writable: true
+                        });
+                        
+                        this.addTestResult('Auth Helpers', 
+                            `Token extraction: ${token ? 'SUCCESS' : 'FAILED'}, Validation: ${isValid ? 'SUCCESS' : 'FAILED'}`, 
+                            !!token && isValid);
+                    } catch (error) {
+                        this.addTestResult('Auth Helpers', 'Error: ' + error.message, false);
+                    }
+                },
+                
+                testAuthService() {
+                    try {
+                        const initialized = authService.initialize();
+                        this.addTestResult('Auth Service', 
+                            `Service initialization: ${initialized ? 'SUCCESS' : 'FAILED'}, Token: ${authService.getToken() ? 'FOUND' : 'NOT FOUND'}`, 
+                            initialized);
+                    } catch (error) {
+                        this.addTestResult('Auth Service', 'Error: ' + error.message, false);
+                    }
+                },
+                
+                addTestResult(test, message, success) {
+                    this.testResults.push({
+                        test: test,
+                        message: message,
+                        success: success
+                    });
+                },
+                
+                clearResults() {
+                    this.testResults = [];
+                }
+            }
+        });
+    </script>
+</body>
+</html>

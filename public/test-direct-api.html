@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Direct API Test - Optix Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #005a87;
+        }
+        .result {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 Direct API Test - Optix Integration</h1>
+        <p>This page tests direct API access to Optix without explicit authentication.</p>
+        
+        <div class="test-section">
+            <h3>🔧 Environment Info</h3>
+            <div id="env-info" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔗 Current URL Details</h3>
+            <div id="url-details" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🔐 Auth Headers</h3>
+            <div id="auth-headers" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎫 Token Info</h3>
+            <div id="token-info" class="result"></div>
+            <div style="margin-top: 10px;">
+                <label for="manual-token">Manual Token (for testing):</label>
+                <input type="text" id="manual-token" placeholder="Enter token here" style="width: 300px; margin: 5px;">
+                <button class="button" onclick="setManualToken()">Set Token</button>
+                <button class="button" onclick="clearManualToken()">Clear Token</button>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h3>🍪 Cookies</h3>
+            <div id="cookies-info" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🧪 API Tests</h3>
+            <button class="button" onclick="testGraphQLSchema()">Test GraphQL Schema</button>
+            <button class="button" onclick="testOrganizationQuery()">Test Organization Query</button>
+            <button class="button" onclick="testWorkflowSteps()">Test Workflow Steps</button>
+            <button class="button" onclick="testCreateWorkflow()">Test Create Workflow</button>
+            <button class="button" onclick="testParentWindow()">Test Parent Window</button>
+            <button class="button" onclick="testOptixGlobals()">Test Optix Globals</button>
+            <button class="button" onclick="checkReceivedMessages()">Check Messages</button>
+            <button class="button" onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Test Results</h3>
+            <div id="test-results" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Next Steps</h3>
+            <p><strong>Issue Found:</strong> Optix is not appending the token to the URL as expected.</p>
+            <p><strong>Solution:</strong> Test with manual token first, then fix Optix configuration.</p>
+            
+            <h4>Step 1: Test API with Manual Token</h4>
+            <ol>
+                <li>Get the token from the parent Optix URL</li>
+                <li>Enter it in the "Manual Token" field above</li>
+                <li>Click "Set Token"</li>
+                <li>Try "Test Organization Query"</li>
+            </ol>
+            
+            <h4>Step 2: Fix Optix Configuration</h4>
+            <p>If the API works with manual token, the issue is in Optix app settings:</p>
+            <ul>
+                <li>Check the canvas URL configuration in Optix</li>
+                <li>Ensure the URL is set to: <code>http://localhost:8000/test-direct-api.html</code></li>
+                <li>Verify the canvas is properly configured for token passing</li>
+                <li>Contact Optix support if needed</li>
+            </ul>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+
+        function updateEnvInfo() {
+            const envInfo = {
+                currentUrl: window.location.href,
+                optixEnv: window.optix_env,
+                optixApiUrl: window.optix_env?.conf?.optix_v2_url || 'Not configured',
+                cookies: document.cookie,
+                userAgent: navigator.userAgent,
+                inIframe: window.parent !== window,
+                urlParams: new URLSearchParams(window.location.search).toString(),
+                urlHash: window.location.hash
+            };
+            
+            document.getElementById('env-info').textContent = JSON.stringify(envInfo, null, 2);
+            
+            // Also update URL details
+            const urlDetails = {
+                href: window.location.href,
+                origin: window.location.origin,
+                pathname: window.location.pathname,
+                search: window.location.search,
+                hash: window.location.hash,
+                searchParams: Object.fromEntries(new URLSearchParams(window.location.search).entries()),
+                hashParams: window.location.hash ? Object.fromEntries(new URLSearchParams(window.location.hash.substring(1)).entries()) : {}
+            };
+            
+            document.getElementById('url-details').textContent = JSON.stringify(urlDetails, null, 2);
+        }
+
+        let manualToken = null;
+
+        function getAuthHeaders() {
+            // Try to get token from URL parameters first
+            const urlParams = new URLSearchParams(window.location.search);
+            let token = urlParams.get('token');
+            
+            // If no token in search params, try URL hash
+            if (!token && window.location.hash) {
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                token = hashParams.get('token');
+            }
+            
+            // If no token in URL, use manual token
+            if (!token && manualToken) {
+                token = manualToken;
+            }
+            
+            const headers = {
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Content-Type': 'application/json',
+                'Origin': window.location.origin,
+                'Referer': window.location.href,
+                'User-Agent': navigator.userAgent,
+                'Sec-Fetch-Dest': 'empty',
+                'Sec-Fetch-Mode': 'cors',
+                'Sec-Fetch-Site': 'cross-site'
+            };
+            
+            // Add authorization header if we have a token
+            if (token) {
+                headers['authorization'] = `Bearer ${token}`;
+            }
+            
+            return headers;
+        }
+
+        function setManualToken() {
+            const tokenInput = document.getElementById('manual-token');
+            manualToken = tokenInput.value.trim();
+            if (manualToken) {
+                console.log('Manual token set:', manualToken);
+                updateTokenInfo();
+                updateAuthHeaders();
+            }
+        }
+
+        function clearManualToken() {
+            manualToken = null;
+            document.getElementById('manual-token').value = '';
+            console.log('Manual token cleared');
+            updateTokenInfo();
+            updateAuthHeaders();
+        }
+
+        function updateTokenInfo() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const urlToken = urlParams.get('token');
+            const token = urlToken || manualToken;
+            
+            document.getElementById('token-info').textContent = JSON.stringify({
+                tokenFound: !!token,
+                tokenLength: token ? token.length : 0,
+                tokenPreview: token ? `${token.substring(0, 10)}...` : 'None',
+                urlParams: window.location.search,
+                urlHash: window.location.hash,
+                fullUrl: window.location.href,
+                manualToken: !!manualToken,
+                allParams: Object.fromEntries(urlParams.entries())
+            }, null, 2);
+        }
+
+        function updateAuthHeaders() {
+            const headers = getAuthHeaders();
+            document.getElementById('auth-headers').textContent = JSON.stringify(headers, null, 2);
+        }
+
+        function addResult(test, success, data, error) {
+            const result = {
+                timestamp: new Date().toISOString(),
+                test: test,
+                success: success,
+                data: data,
+                error: error
+            };
+            
+            testResults.push(result);
+            updateResults();
+        }
+
+        function updateResults() {
+            const resultsElement = document.getElementById('test-results');
+            resultsElement.textContent = JSON.stringify(testResults, null, 2);
+            
+            // Add visual styling
+            if (testResults.length > 0) {
+                const lastResult = testResults[testResults.length - 1];
+                if (lastResult.success) {
+                    resultsElement.className = 'result success';
+                } else {
+                    resultsElement.className = 'result error';
+                }
+            }
+        }
+
+        function clearResults() {
+            testResults = [];
+            updateResults();
+            console.log('Results cleared');
+        }
+
+        async function testGraphQLSchema() {
+            console.log('Testing GraphQL schema...');
+            
+            const apiUrl = window.optix_env?.conf?.optix_v2_url || 'https://api.optixapp.com';
+            const graphqlUrl = `${apiUrl}/graphql`;
+            
+            try {
+                const response = await fetch(graphqlUrl, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        query: '{ __schema { types { name } } }'
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('GraphQL Schema', true, data, null);
+                    console.log('GraphQL schema test successful:', data);
+                } else {
+                    addResult('GraphQL Schema', false, null, `HTTP ${response.status}: ${response.statusText}`);
+                    console.error('GraphQL schema test failed:', response.status, response.statusText);
+                }
+            } catch (error) {
+                addResult('GraphQL Schema', false, null, error.message);
+                console.error('GraphQL schema test error:', error);
+            }
+        }
+
+        async function testOrganizationQuery() {
+            console.log('Testing organization query...');
+            
+            const apiUrl = window.optix_env?.conf?.optix_v2_url || 'https://api.optixapp.com';
+            const graphqlUrl = `${apiUrl}/graphql`;
+            
+            // Use the exact query provided
+            const query = `
+                query GetOrgIDandName {
+                    organization {
+                        organization_id
+                        name
+                        square_logo {
+                            url
+                        }
+                    }
+                }
+            `;
+            
+            try {
+                const response = await fetch(graphqlUrl, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        query: query
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('Organization Query', true, data, null);
+                    console.log('Organization query successful:', data);
+                } else {
+                    addResult('Organization Query', false, null, `HTTP ${response.status}: ${response.statusText}`);
+                    console.error('Organization query failed:', response.status, response.statusText);
+                }
+            } catch (error) {
+                addResult('Organization Query', false, null, error.message);
+                console.error('Organization query error:', error);
+            }
+        }
+
+        async function testWorkflowSteps() {
+            console.log('Testing workflow steps query...');
+            
+            const apiUrl = window.optix_env?.conf?.optix_v2_url || 'https://api.optixapp.com';
+            const graphqlUrl = `${apiUrl}/graphql`;
+            
+            // Looking at the schema, workflowAvailableSteps takes organization_id and returns [WorkflowStep!]!
+            // We need to use fragments to get specific step types
+            const query = `
+                query GetWorkflowAvailableSteps($organization_id: ID!) {
+                    workflowAvailableSteps(organization_id: $organization_id) {
+                        ... on WorkflowTrigger {
+                            workflow_step_id
+                            trigger_type
+                            requires_automations_plus
+                            variables {
+                                name
+                            }
+                        }
+                        ... on WorkflowCondition {
+                            workflow_step_id
+                            requires_automations_plus
+                            condition_operation
+                        }
+                        ... on WorkflowDelay {
+                            workflow_step_id
+                            requires_automations_plus
+                        }
+                        ... on WorkflowAction {
+                            workflow_step_id
+                            action_type
+                            requires_automations_plus
+                        }
+                    }
+                }
+            `;
+            
+            try {
+                const response = await fetch(graphqlUrl, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        query: query,
+                        variables: {
+                            organization_id: "6625" // Use the org ID from your URL
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('Workflow Steps', true, data, null);
+                    console.log('Workflow steps query successful:', data);
+                } else {
+                    addResult('Workflow Steps', false, null, `HTTP ${response.status}: ${response.statusText}`);
+                    console.error('Workflow steps query failed:', response.status, response.statusText);
+                }
+            } catch (error) {
+                addResult('Workflow Steps', false, null, error.message);
+                console.error('Workflow steps query error:', error);
+            }
+        }
+
+        async function testCreateWorkflow() {
+            console.log('Testing workflow creation...');
+            
+            const apiUrl = window.optix_env?.conf?.optix_v2_url || 'https://api.optixapp.com';
+            const graphqlUrl = `${apiUrl}/graphql`;
+            
+            // Looking at the schema, the mutation is called workflowsCommit
+            const mutation = `
+                mutation CreateTestWorkflow($organization_id: ID!, $input: WorkflowInput!) {
+                    workflowsCommit(
+                        organization_id: $organization_id
+                        input: $input
+                    ) {
+                        success
+                        message
+                        data {
+                            workflow_id
+                        }
+                    }
+                }
+            `;
+            
+            const variables = {
+                organization_id: "6625",
+                input: {
+                    name: "Test Workflow from API",
+                    description: "A test workflow created via API",
+                    is_paused: true,
+                    steps: []
+                }
+            };
+            
+            try {
+                const response = await fetch(graphqlUrl, {
+                    method: 'POST',
+                    headers: getAuthHeaders(),
+                    body: JSON.stringify({
+                        query: mutation,
+                        variables: variables
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (response.ok) {
+                    addResult('Create Workflow', true, data, null);
+                    console.log('Create workflow successful:', data);
+                } else {
+                    addResult('Create Workflow', false, null, `HTTP ${response.status}: ${response.statusText}`);
+                    console.error('Create workflow failed:', response.status, response.statusText);
+                }
+            } catch (error) {
+                addResult('Create Workflow', false, null, error.message);
+                console.error('Create workflow error:', error);
+            }
+        }
+
+        async function testParentWindow() {
+            console.log('Testing parent window access...');
+            
+            try {
+                // We can't access parent window properties due to cross-origin restrictions
+                // But we can send postMessage
+                const parentInfo = {
+                    canAccessParent: window.parent !== window,
+                    canSendMessage: true,
+                    note: 'Cross-origin restrictions prevent direct property access'
+                };
+                
+                addResult('Parent Window Access', true, parentInfo, null);
+                console.log('Parent window info:', parentInfo);
+                
+                // Try to send a message to parent requesting auth info
+                window.parent.postMessage({
+                    type: 'REQUEST_AUTH_TOKEN',
+                    source: 'iframe',
+                    requestId: Date.now()
+                }, '*');
+                
+                addResult('PostMessage Sent', true, 'Message sent to parent window', null);
+                
+                // Also try requesting Optix environment info
+                window.parent.postMessage({
+                    type: 'REQUEST_OPTIX_INFO',
+                    source: 'iframe',
+                    requestId: Date.now()
+                }, '*');
+                
+                addResult('Optix Info Request Sent', true, 'Request for Optix environment info sent', null);
+                
+            } catch (error) {
+                addResult('Parent Window Access', false, null, error.message);
+                console.error('Parent window access error:', error);
+            }
+        }
+
+        async function testOptixGlobals() {
+            console.log('Testing Optix global variables...');
+            
+            try {
+                // Check for common Optix global variables
+                const optixGlobals = {
+                    optix_env: window.optix_env,
+                    optix: window.optix,
+                    OPTIX: window.OPTIX,
+                    OptixApp: window.OptixApp,
+                    hasOptixEnv: typeof window.optix_env !== 'undefined',
+                    hasOptix: typeof window.optix !== 'undefined',
+                    hasOPTIX: typeof window.OPTIX !== 'undefined',
+                    hasOptixApp: typeof window.OptixApp !== 'undefined',
+                    globalKeys: Object.keys(window).filter(key => 
+                        key.toLowerCase().includes('optix') || 
+                        key.toLowerCase().includes('auth') ||
+                        key.toLowerCase().includes('token')
+                    )
+                };
+                
+                addResult('Optix Globals', true, optixGlobals, null);
+                console.log('Optix globals:', optixGlobals);
+                
+            } catch (error) {
+                addResult('Optix Globals', false, null, error.message);
+                console.error('Optix globals error:', error);
+            }
+        }
+
+        // Track received messages
+        let receivedMessages = [];
+
+        // Listen for messages from parent window
+        window.addEventListener('message', function(event) {
+            console.log('Received message from parent:', event.data);
+            receivedMessages.push({
+                timestamp: new Date().toISOString(),
+                data: event.data,
+                origin: event.origin
+            });
+            addResult('Parent Message Received', true, event.data, null);
+        });
+
+        async function checkReceivedMessages() {
+            console.log('Checking received messages...');
+            
+            if (receivedMessages.length === 0) {
+                addResult('Check Messages', false, null, 'No messages received from parent window');
+            } else {
+                addResult('Check Messages', true, {
+                    count: receivedMessages.length,
+                    messages: receivedMessages
+                }, null);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateEnvInfo();
+            updateTokenInfo();
+            updateAuthHeaders();
+            
+            // Show cookies
+            const cookies = document.cookie;
+            const cookieList = cookies ? cookies.split(';').map(c => c.trim()) : [];
+            document.getElementById('cookies-info').textContent = JSON.stringify({
+                raw: cookies,
+                parsed: cookieList,
+                count: cookieList.length
+            }, null, 2);
+            
+            console.log('Direct API test page loaded');
+            console.log('Cookies:', cookies);
+        });
+    </script>
+</body>
+</html>

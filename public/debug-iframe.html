@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Iframe Debug - Optix Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .debug-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .debug-title {
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .debug-content {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #005a87;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Iframe Debug - Optix Integration</h1>
+        <p>This page shows all the data available in the Optix iframe environment.</p>
+        
+        <div class="debug-section">
+            <div class="debug-title">📍 Current URL Information</div>
+            <div class="debug-content" id="url-info"></div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">🔍 URL Search Parameters</div>
+            <div class="debug-content" id="search-params"></div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">🔗 URL Hash Fragment</div>
+            <div class="debug-content" id="hash-fragment"></div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">🌍 Optix Environment</div>
+            <div class="debug-content" id="optix-env"></div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">🔐 Authentication Detection</div>
+            <div class="debug-content" id="auth-detection"></div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">🧪 Test Different Token Parameters</div>
+            <div class="debug-content" id="token-tests"></div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">📋 All Window Properties</div>
+            <div class="debug-content" id="window-props"></div>
+        </div>
+
+        <div class="debug-section">
+            <div class="debug-title">🔧 Test Links</div>
+            <div>
+                <button class="button" onclick="testAuthHelpers()">Test Auth Helpers</button>
+                <button class="button" onclick="testOptixApi()">Test Optix API</button>
+                <button class="button" onclick="refreshDebug()">Refresh Debug Info</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Debug information collection
+        function collectDebugInfo() {
+            // URL Information
+            const urlInfo = {
+                href: window.location.href,
+                origin: window.location.origin,
+                pathname: window.location.pathname,
+                search: window.location.search,
+                hash: window.location.hash,
+                protocol: window.location.protocol,
+                host: window.location.host,
+                hostname: window.location.hostname,
+                port: window.location.port
+            };
+            document.getElementById('url-info').textContent = JSON.stringify(urlInfo, null, 2);
+
+            // Search Parameters
+            const searchParams = {};
+            const urlParams = new URLSearchParams(window.location.search);
+            for (const [key, value] of urlParams) {
+                searchParams[key] = value;
+            }
+            document.getElementById('search-params').textContent = JSON.stringify(searchParams, null, 2);
+
+            // Hash Fragment
+            const hashFragment = {};
+            if (window.location.hash) {
+                const hashParams = new URLSearchParams(window.location.hash.substring(1));
+                for (const [key, value] of hashParams) {
+                    hashFragment[key] = value;
+                }
+            }
+            document.getElementById('hash-fragment').textContent = JSON.stringify(hashFragment, null, 2);
+
+            // Optix Environment
+            const optixEnv = {
+                window_optix_env: window.optix_env,
+                optix_v2_url: window.optix_env?.conf?.optix_v2_url,
+                environment: window.optix_env?.env
+            };
+            document.getElementById('optix-env').textContent = JSON.stringify(optixEnv, null, 2);
+
+            // Authentication Detection
+            const authDetection = {
+                hasTokenParam: !!urlParams.get('token'),
+                hasOrgIdParam: !!urlParams.get('organization_id'),
+                hasClientIdParam: !!urlParams.get('client_id'),
+                hasIdentificationParam: !!urlParams.get('identification'),
+                tokenValue: urlParams.get('token') ? urlParams.get('token').substring(0, 20) + '...' : null,
+                orgIdValue: urlParams.get('organization_id'),
+                clientIdValue: urlParams.get('client_id'),
+                identificationValue: urlParams.get('identification')
+            };
+            document.getElementById('auth-detection').textContent = JSON.stringify(authDetection, null, 2);
+
+            // Test different token parameters
+            const tokenTests = {
+                'token': urlParams.get('token'),
+                'auth_token': urlParams.get('auth_token'),
+                'access_token': urlParams.get('access_token'),
+                'api_token': urlParams.get('api_token'),
+                'bearer_token': urlParams.get('bearer_token'),
+                'optix_token': urlParams.get('optix_token'),
+                'auth': urlParams.get('auth'),
+                'key': urlParams.get('key'),
+                'api_key': urlParams.get('api_key')
+            };
+            document.getElementById('token-tests').textContent = JSON.stringify(tokenTests, null, 2);
+
+            // Window Properties (filtered for relevant ones)
+            const windowProps = {};
+            const relevantProps = [
+                'optix_env', 'optix', 'OPTIX', 'Optix', 'OPTIX_ENV',
+                'token', 'auth', 'authentication', 'api', 'client'
+            ];
+            
+            for (const prop of relevantProps) {
+                if (window[prop] !== undefined) {
+                    windowProps[prop] = window[prop];
+                }
+            }
+            
+            // Also check for any properties that contain 'token', 'auth', 'optix'
+            for (const prop in window) {
+                if (prop.toLowerCase().includes('token') || 
+                    prop.toLowerCase().includes('auth') || 
+                    prop.toLowerCase().includes('optix')) {
+                    windowProps[prop] = window[prop];
+                }
+            }
+            
+            document.getElementById('window-props').textContent = JSON.stringify(windowProps, null, 2);
+        }
+
+        // Test auth helpers
+        function testAuthHelpers() {
+            console.log('Testing auth helpers...');
+            
+            // Test our auth helpers
+            const authHelpers = {
+                extractAuthToken: function(paramName = 'token') {
+                    const urlParams = new URLSearchParams(window.location.search);
+                    const token = urlParams.get(paramName);
+                    console.log('extractAuthToken called with paramName:', paramName, 'result:', token);
+                    return token;
+                },
+                extractAuthTokenFromHash: function(paramName = 'token') {
+                    const hash = window.location.hash.substring(1);
+                    const urlParams = new URLSearchParams(hash);
+                    const token = urlParams.get(paramName);
+                    console.log('extractAuthTokenFromHash called with paramName:', paramName, 'result:', token);
+                    return token;
+                },
+                validateTokenFormat: function(token) {
+                    if (!token) return false;
+                    if (typeof token !== 'string') return false;
+                    if (token.length < 10) return false;
+                    return true;
+                },
+                getValidatedAuthToken: function(paramName = 'token') {
+                    const token = this.extractAuthToken(paramName) || this.extractAuthTokenFromHash(paramName);
+                    return this.validateTokenFormat(token) ? token : null;
+                }
+            };
+
+            // Test different parameter names
+            const testParams = ['token', 'auth_token', 'access_token', 'api_token', 'bearer_token', 'optix_token', 'auth', 'key', 'api_key'];
+            
+            console.log('Testing different token parameters:');
+            testParams.forEach(param => {
+                const token = authHelpers.getValidatedAuthToken(param);
+                console.log(`${param}: ${token ? token.substring(0, 20) + '...' : 'not found'}`);
+            });
+        }
+
+        // Test Optix API
+        function testOptixApi() {
+            console.log('Testing Optix API...');
+            
+            // Check if we have the necessary configuration
+            if (!window.optix_env?.conf?.optix_v2_url) {
+                console.error('No Optix API URL configured');
+                return;
+            }
+
+            const apiUrl = `${window.optix_env.conf.optix_v2_url}/graphql`;
+            console.log('API URL:', apiUrl);
+
+            // Try to make a simple request
+            fetch(apiUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    query: '{ __schema { types { name } } }'
+                })
+            })
+            .then(response => {
+                console.log('API Response status:', response.status);
+                return response.json();
+            })
+            .then(data => {
+                console.log('API Response data:', data);
+            })
+            .catch(error => {
+                console.error('API Error:', error);
+            });
+        }
+
+        // Refresh debug info
+        function refreshDebug() {
+            collectDebugInfo();
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            collectDebugInfo();
+            console.log('Iframe debug page loaded');
+        });
+    </script>
+</body>
+</html>

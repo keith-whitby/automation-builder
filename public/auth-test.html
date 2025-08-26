@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auth Token Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .result {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 3px;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .error {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .success {
+            background-color: #e8f5e8;
+            color: #2e7d32;
+        }
+        button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 3px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #005a87;
+        }
+        input {
+            padding: 8px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Auth Token Test</h1>
+    
+    <div class="test-section">
+        <h2>Current URL Information</h2>
+        <div class="result" id="currentUrl"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Iframe Context Information</h2>
+        <button onclick="checkIframeContext()">Check Iframe Context</button>
+        <div class="result" id="iframeContext"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Test URL Parameters</h2>
+        <p>Add a token to the URL and test extraction:</p>
+        <input type="text" id="testUrl" placeholder="Enter URL with token parameter">
+        <button onclick="testUrl()">Test URL</button>
+        <div class="result" id="urlTestResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Manual Token Test</h2>
+        <p>Test token format validation:</p>
+        <input type="text" id="testToken" placeholder="Enter token to validate">
+        <button onclick="testToken()">Validate Token</button>
+        <div class="result" id="tokenTestResult"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>Simulated Tests</h2>
+        <button onclick="simulateSearchParam()">Simulate Search Param (?token=abc123)</button>
+        <button onclick="simulateHashParam()">Simulate Hash Param (#token=abc123)</button>
+        <button onclick="simulateNoToken()">Simulate No Token</button>
+        <button onclick="testYourToken()">Test Your Token (c72e1a07a965a15a2add929a897bc6eef6614cb4)</button>
+        <div class="result" id="simulationResult"></div>
+    </div>
+
+    <script>
+        // Auth helper functions (copied from our authHelpers.js)
+        function extractAuthToken(paramName = 'token') {
+            try {
+                const urlParams = new URLSearchParams(window.location.search);
+                const token = urlParams.get(paramName);
+                
+                if (!token) {
+                    console.warn(`Auth token not found in URL parameter: ${paramName}`);
+                    return null;
+                }
+                
+                return token;
+            } catch (error) {
+                console.error('Error extracting auth token from URL:', error);
+                return null;
+            }
+        }
+
+        function extractAuthTokenFromHash(paramName = 'token') {
+            try {
+                const hash = window.location.hash.substring(1);
+                const urlParams = new URLSearchParams(hash);
+                const token = urlParams.get(paramName);
+                
+                if (!token) {
+                    console.warn(`Auth token not found in URL hash parameter: ${paramName}`);
+                    return null;
+                }
+                
+                return token;
+            } catch (error) {
+                console.error('Error extracting auth token from URL hash:', error);
+                return null;
+            }
+        }
+
+        function extractAuthTokenFromUrl(paramName = 'token') {
+            let token = extractAuthToken(paramName);
+            
+            if (!token) {
+                token = extractAuthTokenFromHash(paramName);
+            }
+            
+            return token;
+        }
+
+        function validateTokenFormat(token) {
+            if (!token || typeof token !== 'string') {
+                return false;
+            }
+            
+            if (token.trim().length === 0) {
+                return false;
+            }
+            
+            return true;
+        }
+
+        function getValidatedAuthToken(paramName = 'token') {
+            const token = extractAuthTokenFromUrl(paramName);
+            
+            if (!token) {
+                return {
+                    token: null,
+                    isValid: false,
+                    error: 'Token not found in URL parameters'
+                };
+            }
+            
+            const isValid = validateTokenFormat(token);
+            
+            return {
+                token: isValid ? token : null,
+                isValid,
+                error: isValid ? null : 'Token format is invalid'
+            };
+        }
+
+        // Test functions
+        function displayResult(elementId, data, isError = false) {
+            const element = document.getElementById(elementId);
+            element.textContent = JSON.stringify(data, null, 2);
+            element.className = 'result ' + (isError ? 'error' : 'success');
+        }
+
+        function testUrl() {
+            const testUrl = document.getElementById('testUrl').value;
+            if (!testUrl) {
+                displayResult('urlTestResult', { error: 'Please enter a URL' }, true);
+                return;
+            }
+
+            try {
+                const url = new URL(testUrl);
+                const searchParams = url.search;
+                const hash = url.hash;
+                
+                const originalLocation = window.location;
+                
+                // Temporarily modify location for testing
+                Object.defineProperty(window, 'location', {
+                    value: {
+                        search: searchParams,
+                        hash: hash,
+                        href: testUrl
+                    },
+                    writable: true
+                });
+
+                const result = getValidatedAuthToken();
+                
+                // Restore original location
+                Object.defineProperty(window, 'location', {
+                    value: originalLocation,
+                    writable: true
+                });
+
+                displayResult('urlTestResult', {
+                    inputUrl: testUrl,
+                    searchParams: searchParams,
+                    hash: hash,
+                    result: result
+                });
+            } catch (error) {
+                displayResult('urlTestResult', { error: 'Invalid URL format' }, true);
+            }
+        }
+
+        function testToken() {
+            const token = document.getElementById('testToken').value;
+            const isValid = validateTokenFormat(token);
+            const result = {
+                token: token,
+                isValid: isValid,
+                error: isValid ? null : 'Token format is invalid'
+            };
+            displayResult('tokenTestResult', result, !isValid);
+        }
+
+        function simulateSearchParam() {
+            // Create a mock URLSearchParams for testing
+            const mockSearchParams = new URLSearchParams('?token=abc123&other=value');
+            const mockToken = mockSearchParams.get('token');
+            const isValid = validateTokenFormat(mockToken);
+            
+            const result = {
+                token: isValid ? mockToken : null,
+                isValid: isValid,
+                error: isValid ? null : 'Token format is invalid'
+            };
+
+            displayResult('simulationResult', {
+                test: 'Search parameter simulation',
+                result: result,
+                note: 'Simulates: ?token=abc123&other=value'
+            });
+        }
+
+        function simulateHashParam() {
+            // Create a mock hash for testing
+            const mockHash = '#token=abc123&other=value';
+            const hashParams = new URLSearchParams(mockHash.substring(1));
+            const mockToken = hashParams.get('token');
+            const isValid = validateTokenFormat(mockToken);
+            
+            const result = {
+                token: isValid ? mockToken : null,
+                isValid: isValid,
+                error: isValid ? null : 'Token format is invalid'
+            };
+
+            displayResult('simulationResult', {
+                test: 'Hash parameter simulation',
+                result: result,
+                note: 'Simulates: #token=abc123&other=value'
+            });
+        }
+
+        function simulateNoToken() {
+            // Create a mock URLSearchParams with no token
+            const mockSearchParams = new URLSearchParams('?other=value');
+            const mockToken = mockSearchParams.get('token'); // This will be null
+            
+            const result = {
+                token: null,
+                isValid: false,
+                error: 'Token not found in URL parameters'
+            };
+
+            displayResult('simulationResult', {
+                test: 'No token simulation',
+                result: result,
+                note: 'Simulates: ?other=value (no token parameter)'
+            });
+        }
+
+        function testYourToken() {
+            // Create a mock URLSearchParams for testing without modifying window.location
+            const mockSearchParams = new URLSearchParams('?organization_id=6625&token=c72e1a07a965a15a2add929a897bc6eef6614cb4');
+            
+            // Test the extraction functions with mock data
+            const mockToken = mockSearchParams.get('token');
+            const mockOrgId = mockSearchParams.get('organization_id');
+            
+            // Test validation
+            const isValid = validateTokenFormat(mockToken);
+            
+            const result = {
+                token: isValid ? mockToken : null,
+                isValid: isValid,
+                error: isValid ? null : 'Token format is invalid',
+                organizationId: mockOrgId
+            };
+
+            displayResult('simulationResult', {
+                test: 'Your actual token simulation',
+                result: result,
+                expectedToken: 'c72e1a07a965a15a2add929a897bc6eef6614cb4',
+                expectedOrgId: '6625',
+                note: 'This simulates what should happen when the token is in the URL'
+            });
+        }
+
+        function checkIframeContext() {
+            const context = {
+                isInIframe: window !== window.top,
+                canAccessParent: false,
+                parentUrl: null,
+                parentOrigin: null,
+                currentOrigin: window.location.origin,
+                tryCatchAccess: null
+            };
+            
+            try {
+                // Try to access parent window (this will fail in iframe due to same-origin policy)
+                context.parentUrl = window.parent.location.href;
+                context.canAccessParent = true;
+            } catch (error) {
+                context.tryCatchAccess = error.message;
+            }
+            
+            try {
+                context.parentOrigin = window.parent.location.origin;
+            } catch (error) {
+                // Expected to fail in cross-origin iframes
+            }
+            
+            displayResult('iframeContext', context);
+        }
+
+        // Initialize page
+        window.onload = function() {
+            // Get URL parameters manually for debugging
+            const urlParams = new URLSearchParams(window.location.search);
+            const allParams = {};
+            for (let [key, value] of urlParams) {
+                allParams[key] = value;
+            }
+            
+            displayResult('currentUrl', {
+                href: window.location.href,
+                search: window.location.search,
+                hash: window.location.hash,
+                allUrlParams: allParams,
+                tokenParam: urlParams.get('token'),
+                organizationIdParam: urlParams.get('organization_id'),
+                currentTokenResult: getValidatedAuthToken()
+            });
+        };
+    </script>
+</body>
+</html>

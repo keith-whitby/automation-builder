@@ -15,3 +15,8 @@ use Optix\Http\Controllers\UIKit;
 */
 
 Route::view('/ui-kit/{interface}', 'uikit');
+
+// Main page route
+Route::get('/', function () {
+    return view('welcome');
+});

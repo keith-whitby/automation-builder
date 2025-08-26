@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Compiled Components</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .test-container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+            text-decoration: none;
+            display: inline-block;
+        }
+        .test-button:hover {
+            background-color: #005a87;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Test Compiled Vue Components</h1>
+        <p>This page tests if the compiled Vue components are accessible.</p>
+        
+        <h2>Test Routes:</h2>
+        <a href="/ui-kit/simple-test" class="test-button">⚡ Simple Test</a>
+        <a href="/ui-kit/auth-test" class="test-button">🧪 Auth Test</a>
+        <a href="/ui-kit/vuex-auth-test" class="test-button">🔧 Auth Service Test</a>
+        <a href="/ui-kit/basic-test" class="test-button">🚨 Basic Test</a>
+        
+        <h2>Test Compiled Assets:</h2>
+        <div id="asset-status"></div>
+        
+        <h2>Instructions:</h2>
+        <ol>
+            <li>Click each test button above</li>
+            <li>If you see a blank page, check the browser console for errors</li>
+            <li>If you see the component content, the compilation worked!</li>
+            <li>Come back here and let me know what you see</li>
+        </ol>
+    </div>
+
+    <script>
+        // Test if compiled assets are accessible
+        const assets = [
+            '/js/app.js',
+            '/js/manifest.js', 
+            '/js/vendor.js',
+            '/css/app.css'
+        ];
+        
+        const statusDiv = document.getElementById('asset-status');
+        
+        assets.forEach(asset => {
+            fetch(asset)
+                .then(response => {
+                    if (response.ok) {
+                        statusDiv.innerHTML += `<div class="status success">✅ ${asset} - Accessible (${response.status})</div>`;
+                    } else {
+                        statusDiv.innerHTML += `<div class="status error">❌ ${asset} - Error (${response.status})</div>`;
+                    }
+                })
+                .catch(error => {
+                    statusDiv.innerHTML += `<div class="status error">❌ ${asset} - Failed to load: ${error.message}</div>`;
+                });
+        });
+        
+        // Test if we can access the compiled Vue components
+        fetch('/js/resources_js_canvas_SimpleTestCanvas_vue.js')
+            .then(response => {
+                if (response.ok) {
+                    statusDiv.innerHTML += `<div class="status success">✅ SimpleTestCanvas - Compiled and accessible</div>`;
+                } else {
+                    statusDiv.innerHTML += `<div class="status error">❌ SimpleTestCanvas - Not found (${response.status})</div>`;
+                }
+            })
+            .catch(error => {
+                statusDiv.innerHTML += `<div class="status error">❌ SimpleTestCanvas - Failed to load: ${error.message}</div>`;
+            });
+    </script>
+</body>
+</html>
