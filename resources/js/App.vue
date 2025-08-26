@@ -14,19 +14,25 @@ export default {
         if (this.$optix) {
             try {
                 // Load environment vars
-                this.$optix.env.readUrl();
+                if (typeof this.$optix.env.readUrl === 'function') {
+                    this.$optix.env.readUrl();
+                }
 
                 // Handle special environment configs
                 if (window.optix_env) {
-                    this.$optix.env.environment = window.optix_env.env;
-                    this.$optix.env.setConf(
-                        window.optix_env.conf,
-                        window.optix_env.env
-                    );
+                    if (typeof this.$optix.env.setConf === 'function') {
+                        this.$optix.env.environment = window.optix_env.env;
+                        this.$optix.env.setConf(
+                            window.optix_env.conf,
+                            window.optix_env.env
+                        );
+                    }
                 }
 
                 // Set default Optix Theme (fonts, colors, etc...)
-                this.$optix.page.refreshStylesheet();
+                if (typeof this.$optix.page.refreshStylesheet === 'function') {
+                    this.$optix.page.refreshStylesheet();
+                }
                 console.log('Optix initialized successfully');
             } catch (error) {
                 console.error('Error initializing Optix:', error);

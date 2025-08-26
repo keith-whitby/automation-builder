@@ -30,9 +30,15 @@ import Vuetify from "vuetify/lib";
 // All vue components from "components" folder
 import "./components/index";
 
-Vue.use(OptixUIPlugin, {
-    themed: true, // Create stylesheets and support theming functions
-});
+// Initialize Optix UI Plugin with error handling
+try {
+    Vue.use(OptixUIPlugin, {
+        themed: true, // Create stylesheets and support theming functions
+    });
+    console.log('Optix UI Plugin initialized successfully');
+} catch (error) {
+    console.warn('Optix UI Plugin initialization failed:', error);
+}
 
 Vue.use(Vuetify);
 
@@ -52,6 +58,17 @@ console.log('Mounting to #app...');
 try {
     vue.$mount("#app");
     console.log('Vue app mounted successfully!');
+    
+    // Add a timeout to check if the app is working
+    setTimeout(() => {
+        console.log('Vue app state after 2 seconds:');
+        console.log('- Vue instance:', vue);
+        console.log('- Current route:', vue.$route);
+        console.log('- App component mounted:', vue.$children.length > 0);
+        if (vue.$children.length > 0) {
+            console.log('- First child component:', vue.$children[0].$options.name);
+        }
+    }, 2000);
 } catch (error) {
     console.error('Error mounting Vue app:', error);
 }

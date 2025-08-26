@@ -113,28 +113,7 @@
                 width: 100vw;
             }
 
-            /* Loading State */
-            .loading-container {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                height: 100vh;
-                background: #f8f9fa;
-            }
 
-            .loading-spinner {
-                border: 4px solid #f3f4f6;
-                border-top: 4px solid #3b82f6;
-                border-radius: 50%;
-                width: 40px;
-                height: 40px;
-                animation: spin 1s linear infinite;
-            }
-
-            @keyframes spin {
-                0% { transform: rotate(0deg); }
-                100% { transform: rotate(360deg); }
-            }
         </style>
     </head>
     <body class="antialiased">
@@ -175,11 +154,7 @@
         </div>
 
         <!-- Main App Container -->
-        <div id="app">
-            <div class="loading-container">
-                <div class="loading-spinner"></div>
-            </div>
-        </div>
+        <div id="app"></div>
 
         <!-- Scripts -->
         <script src="{{ mix('js/app.js') }}"></script>
