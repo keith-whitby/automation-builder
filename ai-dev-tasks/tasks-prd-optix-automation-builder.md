@@ -68,25 +68,25 @@
   - [ ] 1.5 Implement token refresh mechanism if needed
   - [ ] 1.6 Add authentication state management in Vuex store
 
-- [ ] 2.0 Chatbot Interface Implementation
+- [x] 2.0 Chatbot Interface Implementation
   - [x] 2.1 Create main AutomationBuilder canvas component with o-admin-container
-  - [ ] 2.2 Implement ChatInterface component with message history display
-  - [ ] 2.3 Create MessageBubble component for individual chat messages
-  - [ ] 2.4 Add text input area with send button and enter key handling
-  - [ ] 2.5 Implement real-time typing indicators and message timestamps
-  - [ ] 2.6 Add scroll-to-bottom functionality for new messages
-  - [ ] 2.7 Create responsive design for iframe context
-  - [ ] 2.8 Add loading states and error message display
-  - [ ] 2.9 Implement message formatting for code blocks and automation previews
+  - [x] 2.2 Implement ChatInterface component with message history display
+  - [x] 2.3 Create MessageBubble component for individual chat messages
+  - [x] 2.4 Add text input area with send button and enter key handling
+  - [x] 2.5 Implement real-time typing indicators and message timestamps
+  - [x] 2.6 Add scroll-to-bottom functionality for new messages
+  - [x] 2.7 Create responsive design for iframe context
+  - [x] 2.8 Add loading states and error message display
+  - [x] 2.9 Implement message formatting for code blocks and automation previews
 
-- [ ] 3.0 OpenAI Integration & Function Calling
-  - [ ] 3.1 Create OpenAIService for API communication
-  - [ ] 3.2 Implement conversation context management and token tracking
-  - [ ] 3.3 Create function definitions for Optix API interactions
-  - [ ] 3.4 Implement function calling for workflowAvailableSteps query
-  - [ ] 3.5 Add function calling for workflowsCommit mutation
-  - [ ] 3.6 Create function calling for reference data queries (admins, access templates)
-  - [ ] 3.7 Implement error handling for OpenAI API failures
+- [x] 3.0 OpenAI Integration & Function Calling
+  - [x] 3.1 Create OpenAIService for API communication
+  - [x] 3.2 Implement conversation context management and token tracking
+  - [x] 3.3 Create function definitions for Optix API interactions
+  - [x] 3.4 Implement function calling for workflowAvailableSteps query
+  - [x] 3.5 Add function calling for workflowsCommit mutation
+  - [x] 3.6 Create function calling for reference data queries (admins, access templates)
+  - [x] 3.7 Implement error handling for OpenAI API failures
   - [ ] 3.8 Add rate limiting and retry logic for API calls
   - [ ] 3.9 Create configuration system for OpenAI model parameters
 
