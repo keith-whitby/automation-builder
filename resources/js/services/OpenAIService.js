@@ -428,6 +428,12 @@ class OpenAIService {
 
             const data = await response.json();
             console.log('OpenAI Responses API function result response:', data);
+            console.log('Response structure analysis:');
+            console.log('- data.content:', data.content);
+            console.log('- data.output:', data.output);
+            console.log('- data.output[0]:', data.output?.[0]);
+            console.log('- data.output[0].type:', data.output?.[0]?.type);
+            console.log('- data.choices:', data.choices);
 
             // Handle the response format from Responses API for final response
             let content = null;
@@ -435,19 +441,51 @@ class OpenAIService {
             // Check for content in various possible locations
             if (data.content && Array.isArray(data.content) && data.content.length > 0) {
                 content = data.content[0].text || null;
+                console.log('Found content in data.content[0].text:', content);
             } else if (data.content && typeof data.content === 'string') {
                 content = data.content;
+                console.log('Found content in data.content (string):', content);
             } else if (data.output && Array.isArray(data.output)) {
                 // Check if there's text output
                 const textOutput = data.output.find(item => item.type === 'text');
                 if (textOutput) {
                     content = textOutput.text || null;
+                    console.log('Found content in data.output (text):', content);
+                } else {
+                    // If no text type found, check if the first output item has content
+                    const firstOutput = data.output[0];
+                    if (firstOutput && firstOutput.content) {
+                        // Handle content as array or string
+                        if (Array.isArray(firstOutput.content) && firstOutput.content.length > 0) {
+                            // Extract text from the first content item
+                            const firstContentItem = firstOutput.content[0];
+                            if (firstContentItem && firstContentItem.text) {
+                                content = firstContentItem.text;
+                                console.log('Found content in data.output[0].content[0].text:', content);
+                            } else if (firstContentItem && typeof firstContentItem === 'string') {
+                                content = firstContentItem;
+                                console.log('Found content in data.output[0].content[0] (string):', content);
+                            }
+                        } else if (typeof firstOutput.content === 'string') {
+                            content = firstOutput.content;
+                            console.log('Found content in data.output[0].content (string):', content);
+                        }
+                    } else if (firstOutput && firstOutput.text) {
+                        content = firstOutput.text;
+                        console.log('Found content in data.output[0].text:', content);
+                    }
                 }
+            } else if (data.choices && Array.isArray(data.choices) && data.choices.length > 0) {
+                content = data.choices[0].message?.content || null;
+                console.log('Found content in data.choices[0].message.content:', content);
             }
+            
+            console.log('Final content value:', content);
             
             // If still no content, create a fallback message
             if (!content) {
                 content = `I've retrieved the available triggers for you. Here are the ${result.triggers?.length || 0} trigger types available in your Optix system.`;
+                console.log('Using fallback message:', content);
             }
 
             const assistantMessage = {

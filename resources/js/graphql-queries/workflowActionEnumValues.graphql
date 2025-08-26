@@ -1,0 +1,8 @@
+query WorkflowActionEnumValues {
+  __type(name: "WorkflowActionType") {
+    enumValues { 
+      name 
+      description 
+    }
+  }
+}
