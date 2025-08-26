@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Error Handling Test - Optix Integration</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .button {
+            background-color: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .button:hover {
+            background-color: #005a87;
+        }
+        .button.danger {
+            background-color: #dc3545;
+        }
+        .button.danger:hover {
+            background-color: #c82333;
+        }
+        .result {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            margin-top: 10px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .warning {
+            background-color: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚨 Error Handling Test - Optix Integration</h1>
+        <p>This page tests error handling for invalid/missing tokens and other authentication issues.</p>
+        
+        <div class="test-section">
+            <h3>🧪 Error Handling Tests</h3>
+            <button class="button" onclick="testValidToken()">Test Valid Token</button>
+            <button class="button danger" onclick="testInvalidToken()">Test Invalid Token</button>
+            <button class="button danger" onclick="testMissingToken()">Test Missing Token</button>
+            <button class="button danger" onclick="testShortToken()">Test Short Token</button>
+            <button class="button danger" onclick="testExpiredToken()">Test Expired Token</button>
+            <button class="button" onclick="clearResults()">Clear Results</button>
+        </div>
+
+        <div class="test-section">
+            <h3>📊 Test Results</h3>
+            <div id="test-results" class="result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>🎯 Expected Results</h3>
+            <p><strong>Valid Token:</strong> Should work normally</p>
+            <p><strong>Invalid Token:</strong> Should show authentication error</p>
+            <p><strong>Missing Token:</strong> Should show "No authentication token available"</p>
+            <p><strong>Short Token:</strong> Should show "Invalid token format"</p>
+            <p><strong>Expired Token:</strong> Should show authentication failure</p>
+        </div>
+    </div>
+
+    <script>
+        let testResults = [];
+
+        function addResult(test, success, data, error) {
+            const result = {
+                timestamp: new Date().toISOString(),
+                test: test,
+                success: success,
+                data: data,
+                error: error
+            };
+            
+            testResults.push(result);
+            updateResults();
+        }
+
+        function updateResults() {
+            const resultsElement = document.getElementById('test-results');
+            resultsElement.textContent = JSON.stringify(testResults, null, 2);
+            
+            if (testResults.length > 0) {
+                const lastResult = testResults[testResults.length - 1];
+                if (lastResult.success) {
+                    resultsElement.className = 'result success';
+                } else {
+                    resultsElement.className = 'result error';
+                }
+            }
+        }
+
+        function clearResults() {
+            testResults = [];
+            updateResults();
+            console.log('Results cleared');
+        }
+
+        // Mock OptixApiService with error handling
+        class MockOptixApiService {
+            constructor() {
+                this.baseUrl = 'https://api.optixapp.com';
+                this.graphqlEndpoint = `${this.baseUrl}/graphql`;
+                this.token = null;
+            }
+
+            async initialize() {
+                console.log('MockOptixApiService: Initializing...');
+                
+                try {
+                    // Simulate getting token from URL or storage
+                    const urlParams = new URLSearchParams(window.location.search);
+                    this.token = urlParams.get('token');
+                    
+                    if (!this.token) {
+                        throw new Error('No authentication token available. Please check your Optix configuration.');
+                    }
+
+                    // Validate token format
+                    if (this.token.length < 20) {
+                        throw new Error('Invalid token format. Token appears to be too short.');
+                    }
+
+                    console.log('MockOptixApiService: Initialized with token');
+                    return true;
+                    
+                } catch (error) {
+                    console.error('MockOptixApiService: Initialization failed', error);
+                    throw new Error(`API Service initialization failed: ${error.message}`);
+                }
+            }
+
+            async graphqlRequest(query, variables = {}) {
+                try {
+                    // Ensure we have a valid token
+                    if (!this.token) {
+                        await this.initialize();
+                    }
+
+                    // Validate token before making request
+                    if (!this.token || this.token.length < 20) {
+                        throw new Error('Invalid or missing authentication token. Please check your Optix configuration.');
+                    }
+
+                    // Simulate different error scenarios
+                    if (this.token === 'invalid_token') {
+                        throw new Error('Authentication failed. Token may be invalid or expired. Please refresh the page.');
+                    } else if (this.token === 'short') {
+                        throw new Error('Invalid token format. Token appears to be too short.');
+                    } else if (this.token === 'expired_token') {
+                        throw new Error('Authentication failed. Token may be invalid or expired. Please refresh the page.');
+                    }
+
+                    const headers = {
+                        'Accept': '*/*',
+                        'Accept-Language': 'en-US,en;q=0.9',
+                        'Content-Type': 'application/json',
+                        'Origin': window.location.origin,
+                        'Referer': window.location.href,
+                        'User-Agent': navigator.userAgent,
+                        'authorization': `Bearer ${this.token}`
+                    };
+
+                    const body = {
+                        query: query,
+                        variables: variables
+                    };
+
+                    console.log('MockOptixApiService: Making GraphQL request', { query: query.substring(0, 100) + '...', variables });
+
+                    const response = await fetch(this.graphqlEndpoint, {
+                        method: 'POST',
+                        headers: headers,
+                        body: JSON.stringify(body)
+                    });
+
+                    // Handle different HTTP status codes
+                    if (response.status === 401) {
+                        throw new Error('Authentication failed. Token may be invalid or expired. Please refresh the page.');
+                    } else if (response.status === 403) {
+                        throw new Error('Access forbidden. You may not have permission to access this resource.');
+                    } else if (response.status === 404) {
+                        throw new Error('API endpoint not found. Please check the Optix API configuration.');
+                    } else if (response.status >= 500) {
+                        throw new Error('Server error. Please try again later or contact Optix support.');
+                    } else if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
+                    }
+
+                    const data = await response.json();
+                    
+                    // Handle GraphQL errors
+                    if (data.errors) {
+                        console.error('MockOptixApiService: GraphQL errors', data.errors);
+                        
+                        // Check for authentication-related GraphQL errors
+                        const authErrors = data.errors.filter(error => 
+                            error.message.includes('authentication') || 
+                            error.message.includes('unauthorized') ||
+                            error.message.includes('token')
+                        );
+                        
+                        if (authErrors.length > 0) {
+                            throw new Error('Authentication error: ' + authErrors.map(e => e.message).join(', '));
+                        }
+                        
+                        throw new Error(`GraphQL errors: ${data.errors.map(e => e.message).join(', ')}`);
+                    }
+
+                    console.log('MockOptixApiService: GraphQL response received', data);
+                    return data.data;
+                    
+                } catch (error) {
+                    console.error('MockOptixApiService: GraphQL request failed', error);
+                    
+                    // Provide user-friendly error messages
+                    if (error.message.includes('Failed to fetch')) {
+                        throw new Error('Network error. Please check your internet connection and try again.');
+                    } else if (error.message.includes('CORS')) {
+                        throw new Error('Cross-origin request blocked. Please check your Optix configuration.');
+                    }
+                    
+                    throw error;
+                }
+            }
+
+            async getOrganization() {
+                const query = `
+                    query GetOrgIDandName {
+                        organization {
+                            organization_id
+                            name
+                            square_logo {
+                                url
+                            }
+                        }
+                    }
+                `;
+
+                return await this.graphqlRequest(query);
+            }
+        }
+
+        const mockApiService = new MockOptixApiService();
+
+        async function testValidToken() {
+            console.log('Testing with valid token...');
+            
+            try {
+                // Set a valid token
+                const url = new URL(window.location);
+                url.searchParams.set('token', 'baa617ef706e0a926e21a5183db312de71d06b1ap');
+                window.history.replaceState({}, '', url);
+                
+                const success = await mockApiService.initialize();
+                const data = await mockApiService.getOrganization();
+                
+                addResult('Valid Token Test', true, data, null);
+                console.log('Valid token test successful:', data);
+                
+            } catch (error) {
+                addResult('Valid Token Test', false, null, error.message);
+                console.error('Valid token test error:', error);
+            }
+        }
+
+        async function testInvalidToken() {
+            console.log('Testing with invalid token...');
+            
+            try {
+                // Set an invalid token
+                const url = new URL(window.location);
+                url.searchParams.set('token', 'invalid_token');
+                window.history.replaceState({}, '', url);
+                
+                await mockApiService.initialize();
+                await mockApiService.getOrganization();
+                
+                addResult('Invalid Token Test', false, null, 'Should have failed but succeeded');
+                
+            } catch (error) {
+                addResult('Invalid Token Test', false, null, error.message);
+                console.log('Invalid token test correctly failed:', error.message);
+            }
+        }
+
+        async function testMissingToken() {
+            console.log('Testing with missing token...');
+            
+            try {
+                // Remove token
+                const url = new URL(window.location);
+                url.searchParams.delete('token');
+                window.history.replaceState({}, '', url);
+                
+                await mockApiService.initialize();
+                await mockApiService.getOrganization();
+                
+                addResult('Missing Token Test', false, null, 'Should have failed but succeeded');
+                
+            } catch (error) {
+                addResult('Missing Token Test', false, null, error.message);
+                console.log('Missing token test correctly failed:', error.message);
+            }
+        }
+
+        async function testShortToken() {
+            console.log('Testing with short token...');
+            
+            try {
+                // Set a short token
+                const url = new URL(window.location);
+                url.searchParams.set('token', 'short');
+                window.history.replaceState({}, '', url);
+                
+                await mockApiService.initialize();
+                await mockApiService.getOrganization();
+                
+                addResult('Short Token Test', false, null, 'Should have failed but succeeded');
+                
+            } catch (error) {
+                addResult('Short Token Test', false, null, error.message);
+                console.log('Short token test correctly failed:', error.message);
+            }
+        }
+
+        async function testExpiredToken() {
+            console.log('Testing with expired token...');
+            
+            try {
+                // Set an expired token
+                const url = new URL(window.location);
+                url.searchParams.set('token', 'expired_token');
+                window.history.replaceState({}, '', url);
+                
+                await mockApiService.initialize();
+                await mockApiService.getOrganization();
+                
+                addResult('Expired Token Test', false, null, 'Should have failed but succeeded');
+                
+            } catch (error) {
+                addResult('Expired Token Test', false, null, error.message);
+                console.log('Expired token test correctly failed:', error.message);
+            }
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Error handling test page loaded');
+        });
+    </script>
+</body>
+</html>

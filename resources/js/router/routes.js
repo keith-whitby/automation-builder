@@ -1,5 +1,9 @@
 export default [
     {
+        path: "/",
+        component: () => import("@/canvas/AutomationBuilder.vue"),
+    },
+    {
         path: "/ui-kit/sample-sidepanel",
         component: () => import("@/canvas/SampleSidepanel.vue"),
     },
@@ -34,6 +38,14 @@ export default [
     {
         path: "/ui-kit/optix-api-test",
         component: () => import("@/canvas/OptixApiTestCanvas.vue"),
+    },
+    {
+        path: "/automation-builder",
+        component: () => import("@/canvas/AutomationBuilder.vue"),
+    },
+    {
+        path: "/welcome",
+        component: () => import("@/canvas/BasicTestCanvas.vue"),
     },
     {
         path: "*",

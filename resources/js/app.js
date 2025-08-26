@@ -20,7 +20,6 @@ import router from "./router";
 import App from "./App.vue";
 import Vue from "vue";
 
-
 Vue.config.productionTip = false;
 
 import OptixUIPlugin from "optixapp-ui-kit/src/vue-plugin";
@@ -38,25 +37,6 @@ Vue.use(OptixUIPlugin, {
 Vue.use(Vuetify);
 
 console.log('Creating Vue app...');
-console.log('App component:', App);
-console.log('Router:', router);
-
-let vue = new Vue({
-    vuetify: new Vuetify(),
-    router,
-    render: (h) => h(App),
-});
-
-console.log('Vue instance created:', vue);
-console.log('Mounting to #app...');
-
-try {
-    vue.$mount("#app");
-    console.log('Vue app mounted successfully!');
-} catch (error) {
-    console.error('Error mounting Vue app:', error);
-}
-
 console.log('App component:', App);
 console.log('Router:', router);
 

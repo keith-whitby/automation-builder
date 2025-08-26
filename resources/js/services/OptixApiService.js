@@ -17,64 +17,118 @@ class OptixApiService {
     async initialize() {
         console.log('OptixApiService: Initializing...');
         
-        // Get token from auth service
-        this.token = authService.getToken();
-        
-        if (!this.token) {
-            throw new Error('No authentication token available');
-        }
+        try {
+            // Initialize auth service first
+            const authInitialized = authService.initialize();
+            if (!authInitialized) {
+                throw new Error('Authentication service failed to initialize');
+            }
+            
+            // Get token from auth service
+            this.token = authService.getToken();
+            
+            if (!this.token) {
+                throw new Error('No authentication token available. Please check your Optix configuration.');
+            }
 
-        console.log('OptixApiService: Initialized with token');
-        return true;
+            // Validate token format
+            if (this.token.length < 20) {
+                throw new Error('Invalid token format. Token appears to be too short.');
+            }
+
+            console.log('OptixApiService: Initialized with token');
+            return true;
+            
+        } catch (error) {
+            console.error('OptixApiService: Initialization failed', error);
+            throw new Error(`API Service initialization failed: ${error.message}`);
+        }
     }
 
     /**
      * Make a GraphQL query or mutation
      */
     async graphqlRequest(query, variables = {}) {
-        if (!this.token) {
-            await this.initialize();
-        }
-
-        const headers = {
-            'Accept': '*/*',
-            'Accept-Language': 'en-US,en;q=0.9',
-            'Content-Type': 'application/json',
-            'Origin': window.location.origin,
-            'Referer': window.location.href,
-            'User-Agent': navigator.userAgent,
-            'authorization': `Bearer ${this.token}`
-        };
-
-        const body = {
-            query: query,
-            variables: variables
-        };
-
-        console.log('OptixApiService: Making GraphQL request', { query: query.substring(0, 100) + '...', variables });
-
         try {
+            // Ensure we have a valid token
+            if (!this.token) {
+                await this.initialize();
+            }
+
+            // Validate token before making request
+            if (!this.token || this.token.length < 20) {
+                throw new Error('Invalid or missing authentication token. Please check your Optix configuration.');
+            }
+
+            const headers = {
+                'Accept': '*/*',
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Content-Type': 'application/json',
+                'Origin': window.location.origin,
+                'Referer': window.location.href,
+                'User-Agent': navigator.userAgent,
+                'authorization': `Bearer ${this.token}`
+            };
+
+            const body = {
+                query: query,
+                variables: variables
+            };
+
+            console.log('OptixApiService: Making GraphQL request', { query: query.substring(0, 100) + '...', variables });
+
             const response = await fetch(this.graphqlEndpoint, {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify(body)
             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            // Handle different HTTP status codes
+            if (response.status === 401) {
+                throw new Error('Authentication failed. Token may be invalid or expired. Please refresh the page.');
+            } else if (response.status === 403) {
+                throw new Error('Access forbidden. You may not have permission to access this resource.');
+            } else if (response.status === 404) {
+                throw new Error('API endpoint not found. Please check the Optix API configuration.');
+            } else if (response.status >= 500) {
+                throw new Error('Server error. Please try again later or contact Optix support.');
+            } else if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status} - ${response.statusText}`);
             }
 
             const data = await response.json();
             
+            // Handle GraphQL errors
             if (data.errors) {
                 console.error('OptixApiService: GraphQL errors', data.errors);
+                
+                // Check for authentication-related GraphQL errors
+                const authErrors = data.errors.filter(error => 
+                    error.message.includes('authentication') || 
+                    error.message.includes('unauthorized') ||
+                    error.message.includes('token')
+                );
+                
+                if (authErrors.length > 0) {
+                    throw new Error('Authentication error: ' + authErrors.map(e => e.message).join(', '));
+                }
+                
                 throw new Error(`GraphQL errors: ${data.errors.map(e => e.message).join(', ')}`);
             }
 
             console.log('OptixApiService: GraphQL response received', data);
             return data.data;
+            
         } catch (error) {
             console.error('OptixApiService: GraphQL request failed', error);
+            
+            // Provide user-friendly error messages
+            if (error.message.includes('Failed to fetch')) {
+                throw new Error('Network error. Please check your internet connection and try again.');
+            } else if (error.message.includes('CORS')) {
+                throw new Error('Cross-origin request blocked. Please check your Optix configuration.');
+            }
+            
             throw error;
         }
     }
@@ -103,15 +157,12 @@ class OptixApiService {
      */
     async getWorkflowAvailableSteps() {
         const query = `
-            query GetWorkflowAvailableSteps($organization_id: ID!) {
-                workflowAvailableSteps(organization_id: $organization_id) {
+            query GetWorkflowAvailableSteps {
+                workflowAvailableSteps {
                     ... on WorkflowTrigger {
                         workflow_step_id
                         trigger_type
                         requires_automations_plus
-                        variables {
-                            name
-                        }
                     }
                     ... on WorkflowCondition {
                         workflow_step_id
@@ -131,8 +182,53 @@ class OptixApiService {
             }
         `;
 
-        const organizationId = authService.getOrganizationId();
-        return await this.graphqlRequest(query, { organization_id: organizationId });
+        return await this.graphqlRequest(query);
+    }
+
+    /**
+     * Get existing workflows
+     */
+    async getWorkflows() {
+        const query = `
+            query GetWorkflows {
+                workflows(
+                    limit: 100
+                    page: 1
+                    order: NAME_ASC
+                ) {
+                    total
+                    data {
+                        workflow_id
+                        name
+                        is_paused
+                        trigger_type
+                        created_timestamp
+                        updated_timestamp
+                    }
+                }
+            }
+        `;
+
+        return await this.graphqlRequest(query);
+    }
+
+    /**
+     * Get available trigger types
+     */
+    async getWorkflowTriggerTypes() {
+        const query = `
+            query WorkflowTriggerEnumValues {
+                __type(name: "WorkflowTriggerType") {
+                    name
+                    enumValues {
+                        name
+                        description
+                    }
+                }
+            }
+        `;
+
+        return await this.graphqlRequest(query);
     }
 
     /**

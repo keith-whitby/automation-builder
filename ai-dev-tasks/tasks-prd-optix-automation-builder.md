@@ -5,11 +5,19 @@
 - `resources/js/helpers/authHelpers.js` - Authentication helper utilities for URL token extraction
 - `resources/js/helpers/authHelpers.test.js` - Unit tests for authentication helpers
 - `resources/js/services/AuthService.js` - Authentication service for token validation and storage
+- `resources/js/services/OptixApiService.js` - Service for Optix API GraphQL operations
 - `resources/js/graphql-queries/organization.graphql` - GraphQL query for organization details
 - `resources/js/canvas/AuthTestCanvas.vue` - Test canvas component for auth functionality
 - `resources/js/canvas/VuexAuthTestCanvas.vue` - Test canvas component for auth service functionality
 - `public/auth-test.html` - Standalone HTML test page for auth token extraction
-- `resources/js/canvas/AutomationBuilder.vue` - Main canvas component for the automation builder interface
+- `public/test-direct-api.html` - Test page for direct Optix API access
+- `public/test-auth-service.html` - Test page for AuthService functionality
+- `public/test-optix-api-service.html` - Test page for OptixApiService functionality
+- `public/test-error-handling.html` - Test page for error handling scenarios
+- `resources/views/welcome.blade.php` - Main welcome page with test navigation buttons
+- `resources/js/canvas/AutomationBuilder.vue` - Main canvas component for the automation builder interface with ChatGPT-like UI
+- `resources/js/router/routes.js` - Frontend routes with AutomationBuilder as default route
+- `resources/js/app.js` - Cleaned up Vue app initialization
 - `resources/js/canvas/AutomationBuilder.test.js` - Unit tests for the main canvas component
 - `resources/js/components/ChatInterface.vue` - ChatGPT-like chat interface component
 - `resources/js/components/ChatInterface.test.js` - Unit tests for chat interface
@@ -55,13 +63,13 @@
 - [ ] 1.0 Authentication & URL Token Handling
   - [x] 1.1 Create URL parameter extraction utility to get auth token from iframe URL
   - [x] 1.2 Implement token validation and storage in Vuex/local storage
-  - [ ] 1.3 Create authentication service for Optix API calls
-  - [ ] 1.4 Add error handling for invalid/missing tokens
+  - [x] 1.3 Create authentication service for Optix API calls
+  - [x] 1.4 Add error handling for invalid/missing tokens
   - [ ] 1.5 Implement token refresh mechanism if needed
   - [ ] 1.6 Add authentication state management in Vuex store
 
 - [ ] 2.0 Chatbot Interface Implementation
-  - [ ] 2.1 Create main AutomationBuilder canvas component with o-admin-container
+  - [x] 2.1 Create main AutomationBuilder canvas component with o-admin-container
   - [ ] 2.2 Implement ChatInterface component with message history display
   - [ ] 2.3 Create MessageBubble component for individual chat messages
   - [ ] 2.4 Add text input area with send button and enter key handling
