@@ -33,6 +33,11 @@ export default {
                 return '<div class="typing-indicator"><span></span><span></span><span></span></div>';
             }
             
+            // Handle null or undefined content
+            if (!content) {
+                return '<em>Processing...</em>';
+            }
+            
             // Simple markdown-like formatting
             return content
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')

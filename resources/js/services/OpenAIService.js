@@ -8,14 +8,13 @@ class OpenAIService {
     constructor() {
         this.apiKey = null;
         this.baseUrl = 'https://api.openai.com/v1';
-        this.model = 'gpt-4'; // Default model, can be configured
-        this.maxTokens = 4000; // Default token limit
-        this.temperature = 0.7; // Default temperature for creativity
+        this.temperature = 0; // Default temperature for Responses API
         this.conversationHistory = [];
         this.functions = this.getFunctionDefinitions();
         this.tokenCount = 0; // Track token usage
         this.maxHistoryLength = 20; // Maximum conversation history length
         this.maxTokensPerRequest = 8000; // Maximum tokens per request
+        this.promptId = 'pmpt_68ae03fd6e6481908a8939a9e9272e130cf3d534ebfbb3d9'; // Your specific prompt ID
     }
 
     /**
@@ -113,7 +112,7 @@ class OpenAIService {
     addMessage(role, content, functionCall = null, name = null) {
         const message = {
             role,
-            content,
+            content: content || '', // Ensure content is never null
             timestamp: new Date()
         };
 
@@ -154,6 +153,12 @@ class OpenAIService {
      * @param {string} content - Message content
      */
     updateTokenCount(content) {
+        // Handle null/undefined content (e.g., function call responses)
+        if (!content) {
+            console.log('Token count updated: 0 (no content)');
+            return;
+        }
+        
         // Rough estimation: 1 token ≈ 4 characters
         const estimatedTokens = Math.ceil(content.length / 4);
         this.tokenCount += estimatedTokens;
@@ -190,7 +195,7 @@ class OpenAIService {
     }
 
     /**
-     * Send a message to OpenAI and get response
+     * Send a message to OpenAI and get response using Responses API
      * @param {string} userMessage - User's message
      * @param {Object} options - Additional options
      * @returns {Promise<Object>} OpenAI response
@@ -210,24 +215,37 @@ class OpenAIService {
         // Add user message to history
         this.addMessage('user', userMessage);
 
-        // Prepare messages for OpenAI
-        const messages = this.prepareMessages();
-
-        // Prepare request payload
+        // Prepare request payload for Responses API
         const payload = {
-            model: options.model || this.model,
-            messages,
-            max_tokens: options.maxTokens || this.maxTokens,
             temperature: options.temperature || this.temperature,
-            functions: this.functions,
-            function_call: 'auto', // Let OpenAI decide when to call functions
-            prompt: { "id": "pmpt_68ae03fd6e6481908a8939a9e9272e130cf3d534ebfbb3d9" }
+            prompt: { "id": this.promptId },
+            input: [
+                {
+                    role: 'system',
+                    content: 'You are Optix\'s Automation Assistant. Always call capability tools first and only use returned values. If a request is unsupported, say so and suggest the closest supported alternative.'
+                },
+                {
+                    role: 'user',
+                    content: userMessage
+                }
+            ],
+            tools: this.functions.map(func => {
+                console.log('Mapping function to tool:', func);
+                return {
+                    type: 'function',
+                    name: func.name,
+                    description: func.description,
+                    parameters: func.parameters
+                };
+            }),
+            tool_choice: 'auto' // Let OpenAI decide when to call tools
         };
 
         try {
-            console.log('Sending message to OpenAI:', { userMessage, payload });
+            console.log('Sending message to OpenAI Responses API:', { userMessage, payload });
+            console.log('Final payload JSON:', JSON.stringify(payload, null, 2));
             
-            const response = await fetch(`${this.baseUrl}/chat/completions`, {
+            const response = await fetch(`${this.baseUrl}/responses`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -242,12 +260,51 @@ class OpenAIService {
             }
 
             const data = await response.json();
-            const assistantMessage = data.choices[0].message;
+            console.log('OpenAI Responses API response:', data);
+
+            // Handle the response format from Responses API
+            console.log('Full response data:', JSON.stringify(data, null, 2));
+            
+            // The Responses API returns function calls in the output array
+            let content = null;
+            let tool_calls = null;
+            
+            // Check for function calls in the output array
+            if (data.output && Array.isArray(data.output)) {
+                const functionCalls = data.output.filter(item => item.type === 'function_call');
+                if (functionCalls.length > 0) {
+                    tool_calls = functionCalls.map(call => ({
+                        id: call.id,
+                        type: 'function',
+                        function: {
+                            name: call.name,
+                            arguments: call.arguments
+                        }
+                    }));
+                }
+            }
+            
+            // Check for text content in various possible locations
+            if (data.content && Array.isArray(data.content) && data.content.length > 0) {
+                content = data.content[0].text || null;
+            } else if (data.content && typeof data.content === 'string') {
+                content = data.content;
+            } else if (data.choices && Array.isArray(data.choices) && data.choices.length > 0) {
+                content = data.choices[0].message?.content || null;
+                if (!tool_calls) {
+                    tool_calls = data.choices[0].message?.tool_calls || null;
+                }
+            }
+            
+            const assistantMessage = {
+                content: content,
+                tool_calls: tool_calls
+            };
 
             // Add assistant response to history
-            this.addMessage('assistant', assistantMessage.content, assistantMessage.function_call);
+            this.addMessage('assistant', assistantMessage.content, assistantMessage.tool_calls);
 
-            console.log('OpenAI response:', assistantMessage);
+            console.log('Processed assistant message:', assistantMessage);
             return assistantMessage;
 
         } catch (error) {
@@ -256,47 +313,7 @@ class OpenAIService {
         }
     }
 
-    /**
-     * Prepare messages for OpenAI API
-     * @returns {Array} Array of messages in OpenAI format
-     */
-    prepareMessages() {
-        // Add system message for context
-        const systemMessage = {
-            role: 'system',
-            content: `You are an AI assistant that helps Optix admins create automations through natural language conversation. 
 
-Your role is to:
-1. Understand the user's automation requirements
-2. Guide them through the automation creation process step by step
-3. Ask clarifying questions when requirements are ambiguous
-4. Use function calls to interact with the Optix API when needed
-5. Ensure all automations follow best practices and pass validation
-
-Key guidelines:
-- Always ask for clarification if the user's request is unclear
-- Suggest best practices (e.g., adding conditions after delays)
-- Break down complex automations into manageable steps
-- Validate automation data before committing
-- Be conversational and helpful, not technical
-
-Available functions:
-- get_available_triggers: Get all available trigger types from the schema
-- get_available_workflow_steps: Get available triggers, conditions, actions, and delays
-- commit_workflow: Commit a completed workflow
-- get_reference_data: Get reference data like admins and access templates
-- validate_automation_data: Validate automation data against schema`
-        };
-
-        // Convert conversation history to OpenAI format
-        const conversationMessages = this.conversationHistory.map(msg => ({
-            role: msg.role,
-            content: msg.content,
-            ...(msg.function_call && { function_call: msg.function_call })
-        }));
-
-        return [systemMessage, ...conversationMessages];
-    }
 
     /**
      * Clear conversation history
@@ -325,12 +342,10 @@ Available functions:
     }
 
     /**
-     * Update model configuration
+     * Update configuration
      * @param {Object} config - Configuration object
      */
     updateConfig(config) {
-        if (config.model) this.model = config.model;
-        if (config.maxTokens) this.maxTokens = config.maxTokens;
         if (config.temperature) this.temperature = config.temperature;
         console.log('OpenAI configuration updated:', config);
     }
@@ -341,8 +356,6 @@ Available functions:
      */
     getConfig() {
         return {
-            model: this.model,
-            maxTokens: this.maxTokens,
             temperature: this.temperature
         };
     }
@@ -367,30 +380,39 @@ Available functions:
     }
 
     /**
-     * Send function result back to OpenAI to get final response
+     * Send function result back to OpenAI to get final response using Responses API
      * @param {Object} functionCall - The original function call
      * @param {Object} result - The result of the function execution
      * @returns {Promise<Object>} Final OpenAI response
      */
     async sendFunctionResult(functionCall, result) {
         // Add function result to conversation history
-        this.addMessage('function', JSON.stringify(result), null, functionCall.name);
+        this.addMessage('tool', JSON.stringify(result), null, functionCall.name);
 
-        // Send to OpenAI to get final response
-        const messages = this.prepareMessages();
-        
+        // Prepare request payload for Responses API
         const payload = {
-            model: this.model,
-            messages,
-            max_tokens: this.maxTokens,
             temperature: this.temperature,
-            prompt: { "id": "pmpt_68ae03fd6e6481908a8939a9e9272e130cf3d534ebfbb3d9" }
+            prompt: { "id": this.promptId },
+            input: [
+                {
+                    role: 'system',
+                    content: 'You are Optix\'s Automation Assistant. Always call capability tools first and only use returned values. If a request is unsupported, say so and suggest the closest supported alternative.'
+                },
+                {
+                    role: 'user',
+                    content: this.conversationHistory.find(msg => msg.role === 'user')?.content || ''
+                },
+                {
+                    role: 'assistant',
+                    content: `I called the ${functionCall.function.name} function and got the result: ${JSON.stringify(result)}`
+                }
+            ]
         };
 
         try {
-            console.log('Sending function result to OpenAI:', { functionCall, result });
+            console.log('Sending function result to OpenAI Responses API:', { functionCall, result });
             
-            const response = await fetch(`${this.baseUrl}/chat/completions`, {
+            const response = await fetch(`${this.baseUrl}/responses`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -405,7 +427,32 @@ Available functions:
             }
 
             const data = await response.json();
-            const assistantMessage = data.choices[0].message;
+            console.log('OpenAI Responses API function result response:', data);
+
+            // Handle the response format from Responses API for final response
+            let content = null;
+            
+            // Check for content in various possible locations
+            if (data.content && Array.isArray(data.content) && data.content.length > 0) {
+                content = data.content[0].text || null;
+            } else if (data.content && typeof data.content === 'string') {
+                content = data.content;
+            } else if (data.output && Array.isArray(data.output)) {
+                // Check if there's text output
+                const textOutput = data.output.find(item => item.type === 'text');
+                if (textOutput) {
+                    content = textOutput.text || null;
+                }
+            }
+            
+            // If still no content, create a fallback message
+            if (!content) {
+                content = `I've retrieved the available triggers for you. Here are the ${result.triggers?.length || 0} trigger types available in your Optix system.`;
+            }
+
+            const assistantMessage = {
+                content: content
+            };
 
             // Add final assistant response to history
             this.addMessage('assistant', assistantMessage.content);
