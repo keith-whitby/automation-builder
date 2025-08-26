@@ -157,7 +157,21 @@
         <div id="app"></div>
 
         <!-- Scripts -->
-        <script src="{{ mix('js/app.js') }}"></script>
+        <script>
+            // Add error handling for script loading
+            window.addEventListener('error', function(e) {
+                console.error('Script error:', e.error);
+                console.error('Error details:', {
+                    message: e.message,
+                    filename: e.filename,
+                    lineno: e.lineno,
+                    colno: e.colno
+                });
+            });
+        </script>
+        <script src="{{ mix('js/manifest.js') }}" onerror="console.error('Failed to load manifest.js')" onload="console.log('manifest.js loaded successfully')"></script>
+        <script src="{{ mix('js/vendor.js') }}" onerror="console.error('Failed to load vendor.js')" onload="console.log('vendor.js loaded successfully')"></script>
+        <script src="{{ mix('js/app.js') }}" onerror="console.error('Failed to load app.js')" onload="console.log('app.js loaded successfully')"></script>
         <script>
             function toggleTestPanel() {
                 const panel = document.getElementById('testPanel');
@@ -213,6 +227,17 @@
                 } else {
                     console.log('No token found in URL');
                 }
+                
+                // Add debugging for Vue app loading
+                console.log('About to load Vue app...');
+                console.log('App container exists:', !!document.getElementById('app'));
+                
+                // Check if the script files are loading
+                setTimeout(() => {
+                    console.log('Checking Vue app status after 2 seconds...');
+                    console.log('App container content:', document.getElementById('app').innerHTML);
+                    console.log('Vue instance exists:', typeof window.Vue !== 'undefined');
+                }, 2000);
             });
         </script>
     </body>

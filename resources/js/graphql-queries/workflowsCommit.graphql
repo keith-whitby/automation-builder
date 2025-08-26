@@ -1,0 +1,39 @@
+mutation workflowsCommit($workflowData: WorkflowInput!) {
+  workflowsCommit(workflowData: $workflowData) {
+    id
+    name
+    description
+    status
+    createdAt
+    updatedAt
+    steps {
+      id
+      type
+      name
+      order
+      configuration
+    }
+    triggers {
+      id
+      type
+      name
+      configuration
+    }
+    conditions {
+      id
+      type
+      name
+      configuration
+    }
+    actions {
+      id
+      type
+      name
+      configuration
+    }
+    errors {
+      field
+      message
+    }
+  }
+}

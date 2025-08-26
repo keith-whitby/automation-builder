@@ -11,6 +11,11 @@ window.addEventListener('error', function(event) {
     });
 });
 
+// Add iframe-specific debugging
+console.log('App starting in iframe context');
+console.log('Window location:', window.location.href);
+console.log('Optix environment:', window.optix_env);
+
 // Add unhandled promise rejection handler
 window.addEventListener('unhandledrejection', function(event) {
     console.error('Unhandled promise rejection:', event.reason);

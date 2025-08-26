@@ -1,0 +1,21 @@
+query workflowAvailableSteps($stepType: String) {
+  workflowAvailableSteps(stepType: $stepType) {
+    id
+    name
+    type
+    description
+    parameters {
+      name
+      type
+      required
+      description
+      options {
+        value
+        label
+      }
+    }
+    category
+    icon
+    isEnabled
+  }
+}

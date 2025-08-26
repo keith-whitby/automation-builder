@@ -1,0 +1,9 @@
+query WorkflowTriggerEnumValues {
+  __type(name: "WorkflowTriggerType") {
+    name
+    enumValues {
+      name
+      description
+    }
+  }
+}

@@ -9,6 +9,8 @@ export default {
     name: 'App',
     mounted() {
         console.log('App.vue mounted successfully');
+        console.log('App.vue children count:', this.$children.length);
+        console.log('App.vue $route:', this.$route);
         
         // Try to initialize Optix if available
         if (this.$optix) {
