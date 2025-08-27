@@ -52,7 +52,7 @@
                         @keydown.enter.prevent="handleEnterKey"
                         :disabled="isTyping"
                         class="message-input"
-                        rows="1"
+                        rows="2"
                         ref="messageInput"
                     ></textarea>
                     <button
@@ -210,7 +210,6 @@ export default {
 }
 
 .input-area {
-    border-top: 1px solid #e5e5e5;
     background: white;
     padding: 20px 20px 40px 20px;
 }
@@ -224,7 +223,7 @@ export default {
     display: flex;
     align-items: flex-end;
     gap: 8px;
-    background: #f9fafb;
+    background: #f3f4f6;
     border: 1px solid #d1d5db;
     border-radius: 12px;
     padding: 8px 12px;

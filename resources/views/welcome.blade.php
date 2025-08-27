@@ -22,90 +22,7 @@
                 overflow: hidden;
             }
 
-            /* Test Panel Styles */
-            .test-panel-toggle {
-                position: fixed;
-                top: 20px;
-                right: 20px;
-                z-index: 1000;
-                background: #3b82f6;
-                color: white;
-                border: none;
-                border-radius: 50%;
-                width: 50px;
-                height: 50px;
-                cursor: pointer;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-                transition: all 0.3s ease;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                font-size: 20px;
-            }
 
-            .test-panel-toggle:hover {
-                background: #2563eb;
-                transform: scale(1.1);
-            }
-
-            .test-panel {
-                position: fixed;
-                top: 80px;
-                right: 20px;
-                z-index: 999;
-                background: white;
-                border-radius: 12px;
-                box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-                padding: 20px;
-                max-width: 400px;
-                max-height: 80vh;
-                overflow-y: auto;
-                transform: translateX(100%);
-                transition: transform 0.3s ease;
-                border: 1px solid #e5e7eb;
-            }
-
-            .test-panel.open {
-                transform: translateX(0);
-            }
-
-            .test-panel h3 {
-                margin: 0 0 16px 0;
-                color: #374151;
-                font-size: 18px;
-                font-weight: 600;
-            }
-
-            .test-buttons {
-                display: flex;
-                flex-direction: column;
-                gap: 8px;
-            }
-
-            .test-button {
-                display: inline-flex;
-                align-items: center;
-                padding: 8px 12px;
-                background: #f3f4f6;
-                border: 1px solid #d1d5db;
-                border-radius: 6px;
-                color: #374151;
-                text-decoration: none;
-                font-size: 12px;
-                font-weight: 500;
-                transition: all 0.2s ease;
-                cursor: pointer;
-            }
-
-            .test-button:hover {
-                background: #e5e7eb;
-                border-color: #9ca3af;
-            }
-
-            .test-button.small {
-                font-size: 11px;
-                padding: 6px 10px;
-            }
 
             /* Main App Container */
             #app {
@@ -117,41 +34,7 @@
         </style>
     </head>
     <body class="antialiased">
-        <!-- Test Panel Toggle Button -->
-        <button class="test-panel-toggle" onclick="toggleTestPanel()" title="Toggle Test Panel">
-            🧪
-        </button>
 
-        <!-- Test Panel -->
-        <div class="test-panel" id="testPanel">
-            <h3>🧪 Test Pages</h3>
-            <div class="test-buttons">
-                <a href="/auth-test.html" class="test-button" onclick="navigateWithToken('/auth-test.html')">
-                    🔐 Auth Token Extraction
-                </a>
-                <a href="/test-direct-api.html" class="test-button" onclick="navigateWithToken('/test-direct-api.html')">
-                    🚀 Direct API Test
-                </a>
-                <a href="/test-auth-service.html" class="test-button" onclick="navigateWithToken('/test-auth-service.html')">
-                    🔐 AuthService Test
-                </a>
-                <a href="/test-optix-api-service.html" class="test-button" onclick="navigateWithToken('/test-optix-api-service.html')">
-                    🌐 OptixApiService Test
-                </a>
-                <a href="/test-error-handling.html" class="test-button" onclick="navigateWithToken('/test-error-handling.html')">
-                    🚨 Error Handling Test
-                </a>
-                <a href="/ui-kit/simple-test" class="test-button">
-                    ⚡ Simple Canvas Test
-                </a>
-                <a href="/ui-kit/auth-test" class="test-button">
-                    🧪 Auth Canvas Test
-                </a>
-                <a href="/ui-kit/optix-api-test" class="test-button">
-                    🌐 API Canvas Test
-                </a>
-            </div>
-        </div>
 
         <!-- Main App Container -->
         <div id="app"></div>
@@ -173,45 +56,7 @@
         <script src="{{ mix('js/vendor.js') }}" onerror="console.error('Failed to load vendor.js')" onload="console.log('vendor.js loaded successfully')"></script>
         <script src="{{ mix('js/app.js') }}" onerror="console.error('Failed to load app.js')" onload="console.log('app.js loaded successfully')"></script>
         <script>
-            function toggleTestPanel() {
-                const panel = document.getElementById('testPanel');
-                panel.classList.toggle('open');
-            }
 
-            function navigateWithToken(path) {
-                // Get token from current URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const token = urlParams.get('token');
-                const organizationId = urlParams.get('organization_id');
-                
-                // Build new URL with token
-                let newUrl = path;
-                const params = new URLSearchParams();
-                
-                if (token) {
-                    params.append('token', token);
-                }
-                if (organizationId) {
-                    params.append('organization_id', organizationId);
-                }
-                
-                if (params.toString()) {
-                    newUrl += '?' + params.toString();
-                }
-                
-                // Navigate to the new URL
-                window.location.href = newUrl;
-            }
-
-            // Close test panel when clicking outside
-            document.addEventListener('click', function(event) {
-                const panel = document.getElementById('testPanel');
-                const toggle = document.querySelector('.test-panel-toggle');
-                
-                if (!panel.contains(event.target) && !toggle.contains(event.target)) {
-                    panel.classList.remove('open');
-                }
-            });
 
             // Initialize the app when the page loads
             document.addEventListener('DOMContentLoaded', function() {
