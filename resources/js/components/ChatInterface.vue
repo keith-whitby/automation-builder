@@ -5,8 +5,7 @@
             <!-- Welcome Message -->
             <div v-if="messages.length === 0" class="welcome-message">
                 <div class="welcome-content">
-                    <v-icon large color="primary" class="mb-4">mdi-chat-outline</v-icon>
-                    <h2>Welcome to the Optix Automation Builder!</h2>
+                    <h1>Optix Automation Builder</h1>
                     <p>I'm here to help you create automations for your Optix organization. Just tell me what you want to automate, and I'll guide you through the process.</p>
                     
                     <div class="example-prompts">
@@ -46,30 +45,27 @@
         <!-- Input Area -->
         <div class="input-area">
             <div class="input-container">
-                <v-textarea
-                    v-model="userInput"
-                    placeholder="Describe what you want to automate..."
-                    rows="3"
-                    auto-grow
-                    outlined
-                    dense
-                    hide-details
-                    @keydown.enter.prevent="handleEnterKey"
-                    :disabled="isTyping"
-                    class="message-input"
-                ></v-textarea>
-                <v-btn
-                    @click="sendMessage(userInput)"
-                    :disabled="!userInput.trim() || isTyping"
-                    color="primary"
-                    class="send-button"
-                    :loading="isTyping"
-                >
-                    <v-icon>mdi-send</v-icon>
-                </v-btn>
-            </div>
-            <div class="input-hint">
-                Press Enter to send, Shift+Enter for new line
+                <div class="input-wrapper">
+                    <textarea
+                        v-model="userInput"
+                        placeholder="Message Optix Automation Builder..."
+                        @keydown.enter.prevent="handleEnterKey"
+                        :disabled="isTyping"
+                        class="message-input"
+                        rows="1"
+                        ref="messageInput"
+                    ></textarea>
+                    <button
+                        @click="sendMessage(userInput)"
+                        :disabled="!userInput.trim() || isTyping"
+                        class="send-button"
+                        :class="{ 'disabled': !userInput.trim() || isTyping }"
+                    >
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 19V5M5 12L12 5L19 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -143,105 +139,158 @@ export default {
     display: flex;
     flex-direction: column;
     height: 100%;
+    background: white;
 }
 
 .messages-area {
     flex: 1;
     overflow-y: auto;
-    padding: 20px;
+    padding: 0;
 }
 
 .welcome-message {
     text-align: center;
-    padding: 40px 20px;
+    padding: 80px 20px;
     color: #6c757d;
+    max-width: 600px;
+    margin: 0 auto;
 }
 
-.welcome-content h2 {
+.welcome-content h1 {
     color: #2c3e50;
-    margin-bottom: 10px;
+    margin-bottom: 16px;
+    font-size: 32px;
+    font-weight: 600;
+}
+
+.welcome-content p {
+    font-size: 16px;
+    line-height: 1.6;
+    margin-bottom: 32px;
 }
 
 .example-prompts {
-    margin-top: 30px;
+    margin-top: 40px;
 }
 
 .example-prompts h3 {
     color: #2c3e50;
-    margin-bottom: 15px;
+    margin-bottom: 16px;
+    font-size: 18px;
+    font-weight: 600;
 }
 
 .prompt-examples {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 12px;
     max-width: 500px;
     margin: 0 auto;
 }
 
 .prompt-example {
-    padding: 12px 16px;
-    background: #f8f9fa;
-    border: 1px solid #e9ecef;
-    border-radius: 6px;
+    padding: 16px 20px;
+    background: white;
+    border: 1px solid #e5e5e5;
+    border-radius: 8px;
     cursor: pointer;
     transition: all 0.2s ease;
     font-size: 14px;
-    color: #495057;
+    color: #374151;
+    text-align: left;
 }
 
 .prompt-example:hover {
-    background: #e9ecef;
-    border-color: #adb5bd;
+    background: #f9fafb;
+    border-color: #d1d5db;
 }
 
 .message-wrapper {
-    margin-bottom: 20px;
+    margin-bottom: 0;
 }
 
 .input-area {
-    border-top: 1px solid #e9ecef;
-    padding-top: 20px;
+    border-top: 1px solid #e5e5e5;
+    background: white;
+    padding: 20px 20px 40px 20px;
 }
 
 .input-container {
+    max-width: 768px;
+    margin: 0 auto;
+}
+
+.input-wrapper {
     display: flex;
-    gap: 10px;
     align-items: flex-end;
+    gap: 8px;
+    background: #f9fafb;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    padding: 8px 12px;
+    box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
 }
 
 .message-input {
     flex: 1;
+    border: none;
+    outline: none;
+    resize: none;
+    font-size: 16px;
+    line-height: 1.5;
+    padding: 8px 0;
+    background: transparent;
+    font-family: inherit;
+}
+
+.message-input:focus {
+    outline: none;
+}
+
+.message-input::placeholder {
+    color: #9ca3af;
 }
 
 .send-button {
-    height: 40px;
-    min-width: 40px;
+    background: #000000;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    flex-shrink: 0;
 }
 
-.input-hint {
-    font-size: 12px;
-    color: #6c757d;
-    margin-top: 8px;
-    text-align: center;
+.send-button:hover:not(.disabled) {
+    background: #333333;
+}
+
+.send-button.disabled {
+    background: #d1d5db;
+    cursor: not-allowed;
+}
+
+.send-button svg {
+    transform: rotate(0deg);
 }
 
 /* Responsive design */
 @media (max-width: 768px) {
-    .messages-area {
-        padding: 10px;
+    .welcome-message {
+        padding: 40px 20px;
     }
     
-    .welcome-content {
-        text-align: center;
+    .welcome-content h1 {
+        font-size: 24px;
     }
     
-    .input-container {
-        flex-direction: column;
-    }
-    
-    .send-button {
-        align-self: flex-end;
+    .input-area {
+        padding: 16px;
     }
 }
 </style>

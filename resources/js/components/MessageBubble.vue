@@ -1,12 +1,9 @@
 <template>
     <div class="message" :class="message.role">
-        <div class="message-avatar">
-            <v-icon v-if="message.role === 'user'">mdi-account</v-icon>
-            <v-icon v-else color="primary">mdi-robot</v-icon>
-        </div>
-        <div class="message-content">
-            <div class="message-text" v-html="formatMessage(message.content)"></div>
-            <div class="message-timestamp">{{ formatTimestamp(message.timestamp) }}</div>
+        <div class="message-container">
+            <div class="message-content">
+                <div class="message-text" v-html="formatMessage(message.content)"></div>
+            </div>
         </div>
     </div>
 </template>
@@ -45,85 +42,71 @@ export default {
                 .replace(/\n/g, '<br>');
         },
 
-        formatTimestamp(timestamp) {
-            return new Date(timestamp).toLocaleTimeString();
-        }
+
     }
 };
 </script>
 
 <style scoped>
 .message {
+    padding: 20px 0;
+    border-bottom: 1px solid #f0f0f0;
+}
+
+.message:last-child {
+    border-bottom: none;
+}
+
+.message-container {
+    max-width: 768px;
+    margin: 0 auto;
     display: flex;
-    gap: 12px;
     align-items: flex-start;
 }
 
-.message.user {
-    flex-direction: row-reverse;
+.message.user .message-container {
+    justify-content: flex-end;
 }
 
-.message-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    background: #f8f9fa;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.message.user .message-avatar {
-    background: #007bff;
-    color: white;
+.message.assistant .message-container {
+    justify-content: flex-start;
 }
 
 .message-content {
-    flex: 1;
-    max-width: 70%;
-}
-
-.message.user .message-content {
-    text-align: right;
+    max-width: 80%;
 }
 
 .message-text {
-    padding: 12px 16px;
-    border-radius: 12px;
-    background: #f8f9fa;
-    color: #2c3e50;
-    line-height: 1.5;
+    line-height: 1.6;
+    color: #374151;
+    font-size: 16px;
 }
 
 .message.user .message-text {
-    background: #007bff;
-    color: white;
+    background: #f1f3f4;
+    color: #374151;
+    padding: 12px 16px;
+    border-radius: 12px;
+    display: inline-block;
+    max-width: 100%;
 }
 
-.message-timestamp {
-    font-size: 12px;
-    color: #6c757d;
-    margin-top: 5px;
-}
-
-.message.user .message-timestamp {
-    text-align: right;
+.message.assistant .message-text {
+    padding: 0;
+    background: transparent;
 }
 
 .typing-indicator {
     display: flex;
     gap: 4px;
-    padding: 12px 16px;
-    background: #f8f9fa;
-    border-radius: 12px;
+    padding: 0;
 }
 
 .typing-indicator span {
     width: 8px;
     height: 8px;
     border-radius: 50%;
-    background: #6c757d;
+    background: #9ca3af;
     animation: typing 1.4s infinite ease-in-out;
 }
 
@@ -137,8 +120,12 @@ export default {
 
 /* Responsive design */
 @media (max-width: 768px) {
+    .message-container {
+        padding: 0 16px;
+    }
+    
     .message-content {
-        max-width: 85%;
+        max-width: 90%;
     }
 }
 </style>
