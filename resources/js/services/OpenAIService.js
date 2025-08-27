@@ -43,6 +43,29 @@ class OpenAIService {
                 }
             },
             {
+                name: 'get_available_variables',
+                description: 'Get available variables (conditions) for each trigger type from the Optix workflow schema',
+                parameters: {
+                    type: 'object',
+                    properties: {},
+                    required: []
+                }
+            },
+            {
+                name: 'get_conditions_for_trigger',
+                description: 'Get available conditions/variables for a specific trigger type',
+                parameters: {
+                    type: 'object',
+                    properties: {
+                        trigger_type: {
+                            type: 'string',
+                            description: 'The specific trigger type to get conditions for (e.g., CHECKIN, BOOKING_CREATED)'
+                        }
+                    },
+                    required: ['trigger_type']
+                }
+            },
+            {
                 name: 'get_available_actions',
                 description: 'Get all available action types from the Optix workflow schema',
                 parameters: {
@@ -223,18 +246,30 @@ class OpenAIService {
         let contextMessages = [];
         
         if (systemMessage) {
-            contextMessages.push(systemMessage);
+            contextMessages.push({
+                role: systemMessage.role,
+                content: systemMessage.content
+            });
         }
         
         if (nonSystemMessages.length <= 6) {
             // Short conversation - keep all messages
-            contextMessages.push(...nonSystemMessages);
+            contextMessages.push(...nonSystemMessages.map(msg => ({
+                role: msg.role,
+                content: msg.content
+            })));
         } else if (this.isApproachingTokenLimit()) {
             // Approaching limit - keep only last 4 messages
-            contextMessages.push(...nonSystemMessages.slice(-4));
+            contextMessages.push(...nonSystemMessages.slice(-4).map(msg => ({
+                role: msg.role,
+                content: msg.content
+            })));
         } else {
             // Normal case - keep last 6 messages
-            contextMessages.push(...nonSystemMessages.slice(-6));
+            contextMessages.push(...nonSystemMessages.slice(-6).map(msg => ({
+                role: msg.role,
+                content: msg.content
+            })));
         }
         
         console.log(`Smart context: ${contextMessages.length} messages (${nonSystemMessages.length} total in history)`);
@@ -242,10 +277,10 @@ class OpenAIService {
     }
 
     /**
-     * Send a message to OpenAI and get response using Responses API
+     * Send a message to OpenAI and get response using Responses API with structured output
      * @param {string} userMessage - User's message
      * @param {Object} options - Additional options
-     * @returns {Promise<Object>} OpenAI response
+     * @returns {Promise<Object>} OpenAI response with display_text and ui_suggestions
      */
     async sendMessage(userMessage, options = {}) {
         if (!this.apiKey) {
@@ -262,46 +297,73 @@ class OpenAIService {
         // Add user message to history
         this.addMessage('user', userMessage);
 
-        // Prepare request payload for Responses API with optimized context
+        // Prepare request payload for Responses API with structured output
         const payload = {
-            temperature: options.temperature || this.temperature,
+            model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+            temperature: 0,
             prompt: { "id": this.promptId },
             input: [
                 {
                     role: 'system',
                     content: 'You are Optix\'s Automation Assistant. Always call capability tools first and only use returned values. If a request is unsupported, say so and suggest the closest supported alternative.'
-                }
+                },
+                ...this.getContextMessages().filter(msg => msg.role !== 'system')
             ],
-            tools: this.functions.map(func => {
-                console.log('Mapping function to tool:', func);
-                return {
-                    type: 'function',
+            tools: this.functions.map(func => ({
+                type: 'function',
+                function: {
                     name: func.name,
                     description: func.description,
                     parameters: func.parameters
-                };
-            }),
-            tool_choice: 'auto' // Let OpenAI decide when to call tools
+                }
+            })),
+            tool_choice: 'auto',
+            text: {
+                format: {
+                    type: 'json_schema',
+                    json_schema: {
+                        name: 'assistant_reply',
+                        strict: true,
+                        schema: {
+                            type: 'object',
+                            additionalProperties: false,
+                            properties: {
+                                display_text: { type: 'string' },
+                                ui_suggestions: {
+                                    type: 'array',
+                                    maxItems: 3,
+                                    items: {
+                                        type: 'object',
+                                        additionalProperties: false,
+                                        properties: {
+                                            id: { type: 'string' },
+                                            label: { type: 'string' },
+                                            payload: { type: 'string' },
+                                            variant: { type: 'string', enum: ['primary', 'secondary', 'danger'] },
+                                            tool_call: {
+                                                type: 'object',
+                                                additionalProperties: false,
+                                                properties: {
+                                                    name: { type: 'string' },
+                                                    arguments: { type: 'object' }
+                                                },
+                                                required: ['name', 'arguments']
+                                            }
+                                        },
+                                        required: ['id', 'label', 'payload']
+                                    }
+                                }
+                            },
+                            required: ['display_text', 'ui_suggestions']
+                        }
+                    }
+                }
+            }
         };
 
-        // Add optimized conversation context (last 4 messages for efficiency)
-        const recentMessages = this.conversationHistory
-            .filter(msg => msg.role === 'user' || msg.role === 'assistant')
-            .slice(-4); // Keep only last 4 messages for token efficiency
-
-        recentMessages.forEach(message => {
-            payload.input.push({
-                role: message.role,
-                content: message.content || ''
-            });
-        });
-
-        console.log(`Using ${recentMessages.length} recent messages for context`);
+        console.log('Sending message to OpenAI Responses API with structured output:', { userMessage, payload });
 
         try {
-            console.log('Sending message to OpenAI Responses API:', { userMessage, payload });
-            console.log('Final payload JSON:', JSON.stringify(payload, null, 2));
-            
             const response = await fetch(`${this.baseUrl}/responses`, {
                 method: 'POST',
                 headers: {
@@ -319,62 +381,40 @@ class OpenAIService {
             const data = await response.json();
             console.log('OpenAI Responses API response:', data);
 
-
-
-            // Handle the response format from Responses API
-            console.log('Full response data:', JSON.stringify(data, null, 2));
+            // Handle the structured response format
+            let assistantReply = null;
             
-            // The Responses API returns function calls in the output array
-            let content = null;
-            let tool_calls = null;
-            
-            // Check for function calls in the output array
+            // Check for structured output in the response
             if (data.output && Array.isArray(data.output)) {
-                const functionCalls = data.output.filter(item => item.type === 'function_call');
-                if (functionCalls.length > 0) {
-                    tool_calls = functionCalls.map(call => ({
-                        id: call.id,
-                        type: 'function',
-                        function: {
-                            name: call.name,
-                            arguments: call.arguments
-                        }
-                    }));
-                }
-                
-                // Check for text content in the output array
-                const textOutput = data.output.find(item => item.type === 'message' && item.content);
-                if (textOutput && textOutput.content && Array.isArray(textOutput.content)) {
-                    const textContent = textOutput.content.find(content => content.type === 'output_text');
-                    if (textContent && textContent.text) {
-                        content = textContent.text;
-                        console.log('Found content in data.output[0].content[0].text:', content);
+                const structuredOutput = data.output.find(item => item.type === 'text');
+                if (structuredOutput && structuredOutput.text) {
+                    try {
+                        assistantReply = JSON.parse(structuredOutput.text);
+                        console.log('Parsed structured response:', assistantReply);
+                    } catch (parseError) {
+                        console.error('Failed to parse structured response:', parseError);
+                        // Fallback to plain text
+                        assistantReply = {
+                            display_text: structuredOutput.text,
+                            ui_suggestions: []
+                        };
                     }
                 }
             }
             
-            // Check for text content in various possible locations
-            if (!content && data.content && Array.isArray(data.content) && data.content.length > 0) {
-                content = data.content[0].text || null;
-            } else if (!content && data.content && typeof data.content === 'string') {
-                content = data.content;
-            } else if (!content && data.choices && Array.isArray(data.choices) && data.choices.length > 0) {
-                content = data.choices[0].message?.content || null;
-                if (!tool_calls) {
-                    tool_calls = data.choices[0].message?.tool_calls || null;
-                }
+            // If no structured output found, create fallback
+            if (!assistantReply) {
+                assistantReply = {
+                    display_text: 'I received your message but encountered an issue processing the response.',
+                    ui_suggestions: []
+                };
             }
-            
-            const assistantMessage = {
-                content: content,
-                tool_calls: tool_calls
-            };
 
             // Add assistant response to history
-            this.addMessage('assistant', assistantMessage.content, assistantMessage.tool_calls);
+            this.addMessage('assistant', assistantReply.display_text);
 
-            console.log('Processed assistant message:', assistantMessage);
-            return assistantMessage;
+            console.log('Processed assistant reply:', assistantReply);
+            return assistantReply;
 
         } catch (error) {
             console.error('Error sending message to OpenAI:', error);
@@ -449,18 +489,19 @@ class OpenAIService {
     }
 
     /**
-     * Send function result back to OpenAI to get final response using Responses API
+     * Send function result back to OpenAI to get final response using Responses API with structured output
      * @param {Object} functionCall - The original function call
      * @param {Object} result - The result of the function execution
-     * @returns {Promise<Object>} Final OpenAI response
+     * @returns {Promise<Object>} Final OpenAI response with display_text and ui_suggestions
      */
     async sendFunctionResult(functionCall, result) {
         // Add function result to conversation history
-        this.addMessage('tool', JSON.stringify(result), null, functionCall.name);
+        this.addMessage('tool', JSON.stringify(result), null, functionCall.function.name);
 
-        // Prepare request payload for Responses API with optimized context
+        // Prepare request payload for Responses API with structured output
         const payload = {
-            temperature: this.temperature,
+            model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+            temperature: 0,
             prompt: { "id": this.promptId },
             input: [
                 {
@@ -471,7 +512,57 @@ class OpenAIService {
                     role: 'assistant',
                     content: `I called the ${functionCall.function.name} function and got the result: ${JSON.stringify(result)}`
                 }
-            ]
+            ],
+            tools: this.functions.map(func => ({
+                type: 'function',
+                function: {
+                    name: func.name,
+                    description: func.description,
+                    parameters: func.parameters
+                }
+            })),
+            tool_choice: 'auto',
+            text: {
+                format: {
+                    type: 'json_schema',
+                    json_schema: {
+                        name: 'assistant_reply',
+                        strict: true,
+                        schema: {
+                            type: 'object',
+                            additionalProperties: false,
+                            properties: {
+                                display_text: { type: 'string' },
+                                ui_suggestions: {
+                                    type: 'array',
+                                    maxItems: 3,
+                                    items: {
+                                        type: 'object',
+                                        additionalProperties: false,
+                                        properties: {
+                                            id: { type: 'string' },
+                                            label: { type: 'string' },
+                                            payload: { type: 'string' },
+                                            variant: { type: 'string', enum: ['primary', 'secondary', 'danger'] },
+                                            tool_call: {
+                                                type: 'object',
+                                                additionalProperties: false,
+                                                properties: {
+                                                    name: { type: 'string' },
+                                                    arguments: { type: 'object' }
+                                                },
+                                                required: ['name', 'arguments']
+                                            }
+                                        },
+                                        required: ['id', 'label', 'payload']
+                                    }
+                                }
+                            },
+                            required: ['display_text', 'ui_suggestions']
+                        }
+                    }
+                }
+            }
         };
 
         // Add recent conversation context for function results
@@ -489,7 +580,7 @@ class OpenAIService {
         console.log(`Using ${recentMessages.length} recent messages for function result context`);
 
         try {
-            console.log('Sending function result to OpenAI Responses API:', { functionCall, result });
+            console.log('Sending function result to OpenAI Responses API with structured output:', { functionCall, result });
             
             const response = await fetch(`${this.baseUrl}/responses`, {
                 method: 'POST',
@@ -508,76 +599,40 @@ class OpenAIService {
             const data = await response.json();
             console.log('OpenAI Responses API function result response:', data);
 
-
-            console.log('Response structure analysis:');
-            console.log('- data.content:', data.content);
-            console.log('- data.output:', data.output);
-            console.log('- data.output[0]:', data.output?.[0]);
-            console.log('- data.output[0].type:', data.output?.[0]?.type);
-            console.log('- data.choices:', data.choices);
-
-            // Handle the response format from Responses API for final response
-            let content = null;
+            // Handle the structured response format
+            let assistantReply = null;
             
-            // Check for content in various possible locations
-            if (data.content && Array.isArray(data.content) && data.content.length > 0) {
-                content = data.content[0].text || null;
-                console.log('Found content in data.content[0].text:', content);
-            } else if (data.content && typeof data.content === 'string') {
-                content = data.content;
-                console.log('Found content in data.content (string):', content);
-            } else if (data.output && Array.isArray(data.output)) {
-                // Check if there's text output
-                const textOutput = data.output.find(item => item.type === 'text');
-                if (textOutput) {
-                    content = textOutput.text || null;
-                    console.log('Found content in data.output (text):', content);
-                } else {
-                    // If no text type found, check if the first output item has content
-                    const firstOutput = data.output[0];
-                    if (firstOutput && firstOutput.content) {
-                        // Handle content as array or string
-                        if (Array.isArray(firstOutput.content) && firstOutput.content.length > 0) {
-                            // Extract text from the first content item
-                            const firstContentItem = firstOutput.content[0];
-                            if (firstContentItem && firstContentItem.text) {
-                                content = firstContentItem.text;
-                                console.log('Found content in data.output[0].content[0].text:', content);
-                            } else if (firstContentItem && typeof firstContentItem === 'string') {
-                                content = firstContentItem;
-                                console.log('Found content in data.output[0].content[0] (string):', content);
-                            }
-                        } else if (typeof firstOutput.content === 'string') {
-                            content = firstOutput.content;
-                            console.log('Found content in data.output[0].content (string):', content);
-                        }
-                    } else if (firstOutput && firstOutput.text) {
-                        content = firstOutput.text;
-                        console.log('Found content in data.output[0].text:', content);
+            // Check for structured output in the response
+            if (data.output && Array.isArray(data.output)) {
+                const structuredOutput = data.output.find(item => item.type === 'text');
+                if (structuredOutput && structuredOutput.text) {
+                    try {
+                        assistantReply = JSON.parse(structuredOutput.text);
+                        console.log('Parsed structured function result response:', assistantReply);
+                    } catch (parseError) {
+                        console.error('Failed to parse structured function result response:', parseError);
+                        // Fallback to plain text
+                        assistantReply = {
+                            display_text: structuredOutput.text,
+                            ui_suggestions: []
+                        };
                     }
                 }
-            } else if (data.choices && Array.isArray(data.choices) && data.choices.length > 0) {
-                content = data.choices[0].message?.content || null;
-                console.log('Found content in data.choices[0].message.content:', content);
             }
             
-            console.log('Final content value:', content);
-            
-            // If still no content, create a fallback message
-            if (!content) {
-                content = `I've retrieved the available triggers for you. Here are the ${result.triggers?.length || 0} trigger types available in your Optix system.`;
-                console.log('Using fallback message:', content);
+            // If no structured output found, create fallback
+            if (!assistantReply) {
+                assistantReply = {
+                    display_text: `I've processed the ${functionCall.function.name} function result. Here's what I found: ${JSON.stringify(result)}`,
+                    ui_suggestions: []
+                };
             }
-
-            const assistantMessage = {
-                content: content
-            };
 
             // Add final assistant response to history
-            this.addMessage('assistant', assistantMessage.content);
+            this.addMessage('assistant', assistantReply.display_text);
 
-            console.log('OpenAI final response:', assistantMessage);
-            return assistantMessage;
+            console.log('OpenAI final structured response:', assistantReply);
+            return assistantReply;
 
         } catch (error) {
             console.error('Error sending function result to OpenAI:', error);

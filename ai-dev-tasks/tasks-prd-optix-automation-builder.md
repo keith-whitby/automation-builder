@@ -45,7 +45,8 @@
 - `resources/js/router/routes.js` - Frontend routes for the automation builder
 - `resources/js/graphql-queries/workflowAvailableSteps.graphql` - GraphQL query for available workflow steps
 - `resources/js/graphql-queries/workflowsCommit.graphql` - GraphQL mutation for committing workflows
-- `resources/js/graphql-queries/workflowTriggerEnumValues.graphql` - GraphQL query for workflow trigger enum values
+- `resources/js/graphql-queries/workflowTriggerEnumValues.graphql` - GraphQL query for available workflow triggers (GetAvailableTriggers)
+- `resources/js/graphql-queries/workflowVariables.graphql` - GraphQL query for available variables per trigger (GetAvailableVariables)
 - `resources/js/graphql-queries/workflowActionEnumValues.graphql` - GraphQL query for workflow action enum values
 - `resources/js/graphql-queries/accessTemplates.graphql` - GraphQL query for access templates
 - `resources/js/graphql-queries/admins.graphql` - GraphQL query for admin users
@@ -95,11 +96,13 @@
   - [x] 3.6 Create function calling for reference data queries (admins, access templates)
   - [x] 3.7 Implement error handling for OpenAI API failures
   - [x] 3.8 Add function calling for get_available_actions (workflow action types)
-  - [x] 3.9 Implement Responses API integration (not chat/completions)
-  - [x] 3.10 Add optimized conversation context management (last 4 messages)
-  - [x] 3.11 Implement token-efficient context strategy
-  - [ ] 3.12 Add rate limiting and retry logic for API calls
-  - [ ] 3.13 Create configuration system for OpenAI model parameters
+  - [x] 3.9 Add function calling for get_available_variables (trigger conditions)
+  - [x] 3.10 Add function calling for get_conditions_for_trigger (specific trigger conditions)
+  - [x] 3.11 Implement Responses API integration (not chat/completions)
+  - [x] 3.12 Add optimized conversation context management (last 4 messages)
+  - [x] 3.13 Implement token-efficient context strategy
+  - [ ] 3.14 Add rate limiting and retry logic for API calls
+  - [ ] 3.15 Create configuration system for OpenAI model parameters
 
 - [ ] 4.0 Automation Building & Preview System
   - [ ] 4.1 Create AutomationPreview component for real-time automation display
@@ -130,10 +133,11 @@
   - [x] 6.4 Create GraphQL mutation for workflowsCommit
   - [x] 6.5 Implement reference data queries (access templates, admins)
   - [x] 6.6 Add GraphQL queries for workflow trigger and action enum values
-  - [ ] 6.7 Add PHP OpenAI service for server-side AI operations
-  - [ ] 6.8 Create automation validation service
-  - [ ] 6.9 Implement session storage for automation progress
-  - [ ] 6.10 Add API rate limiting and security measures
+  - [x] 6.7 Add GraphQL query for workflow variables (conditions per trigger)
+  - [ ] 6.8 Add PHP OpenAI service for server-side AI operations
+  - [ ] 6.9 Create automation validation service
+  - [ ] 6.10 Implement session storage for automation progress
+  - [ ] 6.11 Add API rate limiting and security measures
 
 - [ ] 7.0 Testing & Quality Assurance
   - [ ] 7.1 Write unit tests for all Vue components

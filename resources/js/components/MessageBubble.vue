@@ -7,6 +7,21 @@
                 </div>
                 <div v-else-if="isAssistantMessage && showTypingEffect" class="message-text typing-effect" v-html="displayedContent"></div>
                 <div v-else class="message-text" v-html="formatMessage(message.content)"></div>
+                
+                <!-- Quick Reply Buttons -->
+                <div v-if="isAssistantMessage && message.ui_suggestions && message.ui_suggestions.length > 0" class="quick-replies">
+                    <div class="quick-reply-buttons">
+                        <button
+                            v-for="suggestion in message.ui_suggestions"
+                            :key="suggestion.id"
+                            @click="handleQuickReply(suggestion)"
+                            class="quick-reply-button"
+                            :class="getButtonVariant(suggestion.variant)"
+                        >
+                            {{ suggestion.label }}
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -102,6 +117,21 @@ export default {
                 setTimeout(() => {
                     this.showTypingEffect = false;
                 }, 100); // Reduced delay for snappier feel
+            }
+        },
+        handleQuickReply(suggestion) {
+            // Emit event to parent component
+            this.$emit('quick-reply', suggestion);
+        },
+        getButtonVariant(variant) {
+            switch (variant) {
+                case 'secondary':
+                    return 'secondary';
+                case 'danger':
+                    return 'danger';
+                case 'primary':
+                default:
+                    return 'primary';
             }
         }
     }
@@ -225,7 +255,70 @@ export default {
     }
 }
 
+/* Quick Reply Buttons */
+.quick-replies {
+    margin-top: 16px;
+}
 
+.quick-reply-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.quick-reply-button {
+    padding: 8px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 20px;
+    background: white;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.quick-reply-button:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+.quick-reply-button.primary {
+    background: #000000;
+    color: white;
+    border-color: #000000;
+}
+
+.quick-reply-button.primary:hover {
+    background: #333333;
+    border-color: #333333;
+}
+
+.quick-reply-button.secondary {
+    background: #f3f4f6;
+    color: #374151;
+    border-color: #d1d5db;
+}
+
+.quick-reply-button.secondary:hover {
+    background: #e5e7eb;
+    border-color: #9ca3af;
+}
+
+.quick-reply-button.danger {
+    background: #ef4444;
+    color: white;
+    border-color: #ef4444;
+}
+
+.quick-reply-button.danger:hover {
+    background: #dc2626;
+    border-color: #dc2626;
+}
 
 /* Responsive design */
 @media (max-width: 768px) {

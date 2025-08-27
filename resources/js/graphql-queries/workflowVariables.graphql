@@ -1,7 +1,8 @@
-query GetAvailableTriggers {
+query GetAvailableVariables {
   workflowAvailableSteps {
     ... on WorkflowTrigger {
       trigger_type
+      variables
     }
   }
 }

@@ -30,6 +30,7 @@
                 <MessageBubble 
                     :message="message"
                     :is-typing="false"
+                    @quick-reply="handleQuickReply"
                 />
             </div>
 
@@ -128,6 +129,18 @@ export default {
         scrollToBottom() {
             if (this.$refs.messagesContainer) {
                 this.$refs.messagesContainer.scrollTop = this.$refs.messagesContainer.scrollHeight;
+            }
+        },
+
+        handleQuickReply(suggestion) {
+            console.log('Quick reply clicked:', suggestion);
+            
+            if (suggestion.tool_call) {
+                // Handle tool call
+                this.$emit('tool-call', suggestion.tool_call);
+            } else {
+                // Send payload as user message
+                this.sendMessage(suggestion.payload);
             }
         }
     }

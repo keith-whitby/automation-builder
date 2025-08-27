@@ -217,12 +217,28 @@ class OptixApiService {
      */
     async getWorkflowTriggerTypes() {
         const query = `
-            query WorkflowTriggerEnumValues {
-                __type(name: "WorkflowTriggerType") {
-                    name
-                    enumValues {
-                        name
-                        description
+            query GetAvailableTriggers {
+                workflowAvailableSteps {
+                    ... on WorkflowTrigger {
+                        trigger_type
+                    }
+                }
+            }
+        `;
+
+        return await this.graphqlRequest(query);
+    }
+
+    /**
+     * Get available variables (conditions) for each trigger
+     */
+    async getWorkflowVariables() {
+        const query = `
+            query GetAvailableVariables {
+                workflowAvailableSteps {
+                    ... on WorkflowTrigger {
+                        trigger_type
+                        variables
                     }
                 }
             }
