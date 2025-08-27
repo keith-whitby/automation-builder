@@ -232,6 +232,25 @@ class OptixApiService {
     }
 
     /**
+     * Get available action types
+     */
+    async getWorkflowActionTypes() {
+        const query = `
+            query WorkflowActionEnumValues {
+                __type(name: "WorkflowActionType") {
+                    name
+                    enumValues {
+                        name
+                        description
+                    }
+                }
+            }
+        `;
+
+        return await this.graphqlRequest(query);
+    }
+
+    /**
      * Create a workflow (automation)
      */
     async createWorkflow(workflowData) {

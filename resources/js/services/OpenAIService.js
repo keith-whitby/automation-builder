@@ -42,6 +42,15 @@ class OpenAIService {
                 }
             },
             {
+                name: 'get_available_actions',
+                description: 'Get all available action types from the Optix workflow schema',
+                parameters: {
+                    type: 'object',
+                    properties: {},
+                    required: []
+                }
+            },
+            {
                 name: 'get_available_workflow_steps',
                 description: 'Get available workflow steps and triggers from Optix API',
                 parameters: {
@@ -282,14 +291,24 @@ class OpenAIService {
                         }
                     }));
                 }
+                
+                // Check for text content in the output array
+                const textOutput = data.output.find(item => item.type === 'message' && item.content);
+                if (textOutput && textOutput.content && Array.isArray(textOutput.content)) {
+                    const textContent = textOutput.content.find(content => content.type === 'output_text');
+                    if (textContent && textContent.text) {
+                        content = textContent.text;
+                        console.log('Found content in data.output[0].content[0].text:', content);
+                    }
+                }
             }
             
             // Check for text content in various possible locations
-            if (data.content && Array.isArray(data.content) && data.content.length > 0) {
+            if (!content && data.content && Array.isArray(data.content) && data.content.length > 0) {
                 content = data.content[0].text || null;
-            } else if (data.content && typeof data.content === 'string') {
+            } else if (!content && data.content && typeof data.content === 'string') {
                 content = data.content;
-            } else if (data.choices && Array.isArray(data.choices) && data.choices.length > 0) {
+            } else if (!content && data.choices && Array.isArray(data.choices) && data.choices.length > 0) {
                 content = data.choices[0].message?.content || null;
                 if (!tool_calls) {
                     tool_calls = data.choices[0].message?.tool_calls || null;
