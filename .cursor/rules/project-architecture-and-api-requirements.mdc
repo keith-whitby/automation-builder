@@ -1,0 +1,448 @@
+---
+alwaysApply: false
+---
+Project architecture & API requirements
+	•	Use OpenAI Responses API (/v1/responses), not Chat Completions.
+	•	Always send:
+	•	model: "gpt-4.1-mini" (or my env OPENAI_MODEL)
+	•	temperature: 0
+	•	prompt: { id: "pmpt_68ae03fd6e6481908a8939a9e9272e130cf3d534ebfbb3d9" }
+	•	tools: include my capability functions:
+	•	get_available_triggers()
+	•	get_available_workflow_steps(step_type: "trigger" | "condition" | "action" | "delay")
+	•	get_reference_data(data_type: "admins" | "access_templates" | "triggers" | "organizations")
+	•	validate_automation_data(automation_data: object)
+	•	commit_workflow(workflow_data: object)
+	•	tool_choice: "auto"
+	•	response_format: strict JSON schema below.
+
+Structured output (strict schema)
+The assistant must always return this shape:
+
+{
+  "type": "json_schema",
+  "json_schema": {
+    "name": "assistant_reply",
+    "strict": true,
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "display_text": { "type": "string" },
+        "ui_suggestions": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "payload": { "type": "string" },
+              "variant": { "type": "string", "enum": ["primary","secondary","danger"] },
+              "tool_call": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string" },
+                  "arguments": { "type": "object" }
+                },
+                "required": ["name","arguments"]
+              }
+            },
+            "required": ["id","label","payload"]
+          }
+        }
+      },
+      "required": ["display_text","ui_suggestions"]
+    }
+  }
+}
+
+Grounding rules (put in every request’s System message)
+	•	Before proposing any trigger/condition/action/delay/admin/template, call the relevant tools and use only returned values.
+	•	If the user asks for something not returned by tools, state it’s unsupported in Optix and suggest the closest supported option.
+	•	Ask one pointed clarification question at a time and include up to 3 ui_suggestions to continue.
+	•	Never expose internal tool args verbatim to the user; summarize plainly in display_text.
+
+Coding standards
+	•	Node/TypeScript server. Never expose API key in browser; all OpenAI calls from server.
+	•	Create a thin “LLM client” that: (1) sends request, (2) loops tool calls until a final model message, (3) returns { display_text, ui_suggestions }.
+	•	React client renders display_text and buttons from ui_suggestions. On click:
+	•	If tool_call present → call my server route for that tool and re-run the LLM turn.
+	•	Else send payload as the next user message.
+
+⸻
+
+Ask Cursor to generate these files
+
+1) Server LLM client (TypeScript)
+
+// lib/llm.ts
+import OpenAI from "openai";
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+
+const RESPONSE_SCHEMA = {/* paste the schema object from above */};
+
+type ToolMap = {
+  get_available_triggers: () => Promise<any>;
+  get_available_workflow_steps: (args: { step_type: "trigger"|"condition"|"action"|"delay" }) => Promise<any>;
+  get_reference_data: (args: { data_type: "admins"|"access_templates"|"triggers"|"organizations" }) => Promise<any>;
+  validate_automation_data: (args: { automation_data: any }) => Promise<any>;
+  commit_workflow: (args: { workflow_data: any }) => Promise<any>;
+};
+
+export async function runTurn({
+  messages,
+  toolMap
+}: {
+  messages: { role: "system"|"user"|"assistant"|"tool"; content: string }[];
+  toolMap: ToolMap;
+}) {
+  const req = {
+    model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
+    temperature: 0,
+    prompt: { id: "pmpt_68ae03fd6e6481908a8939a9e9272e130cf3d534ebfbb3d9" },
+    input: messages,
+    tools: [
+      { type: "function", function: { name: "get_available_triggers", parameters: { type:"object", properties:{} } } },
+      { type: "function", function: { name: "get_available_workflow_steps", parameters: {
+        type:"object",
+        properties:{ step_type:{ type:"string", enum:["trigger","condition","action","delay"] }},
+        required:["step_type"]
+      } } },
+      { type: "function", function: { name: "get_reference_data", parameters: {
+        type:"object",
+        properties:{ data_type:{ type:"string", enum:["admins","access_templates","triggers","organizations"] }},
+        required:["data_type"]
+      } } },
+      { type: "function", function: { name: "validate_automation_data", parameters: {
+        type:"object", properties:{ automation_data:{ type:"object" }}, required:["automation_data"]
+      } } },
+      { type: "function", function: { name: "commit_workflow", parameters: {
+        type:"object", properties:{ workflow_data:{ type:"object" }}, required:["workflow_data"]
+      } } }
+    ],
+    tool_choice: "auto" as const,
+    response_format: RESPONSE_SCHEMA
+  };
+
+  // Tool-loop
+  let resp = await openai.responses.create(req as any);
+  while (resp.output && resp.output[0]?.type === "tool_call") {
+    const call = resp.output[0].tool_call;
+    const name = call?.function?.name as keyof ToolMap;
+    const args = call?.function?.arguments ?? {};
+    const toolResult = await toolMap[name](args);
+
+    // Feed tool result back in and continue
+    resp = await openai.responses.create({
+      ...req,
+      input: [
+        ...messages,
+        { role: "tool", content: JSON.stringify({ name, result: toolResult }) }
+      ]
+    } as any);
+  }
+
+  // Final structured reply
+  const parsed = (resp as any).output_parsed;
+  return parsed; // { display_text, ui_suggestions }
+}
+
+2) Minimal server route
+
+// pages/api/chat.ts (Next.js) or routes/chat.ts (Express)
+import { runTurn } from "@/lib/llm";
+import { getTriggers, getSteps, getRefData, validate, commit } from "@/lib/optixApi";
+
+export default async function handler(req, res) {
+  const { history, message } = req.body;
+  const system = {
+    role: "system",
+    content: "Before proposing options, call tools and use only returned values. Unsupported → say so and suggest nearest supported."
+  };
+  const messages = [system, ...history, { role: "user", content: message }];
+
+  const toolMap = {
+    get_available_triggers: () => getTriggers(),
+    get_available_workflow_steps: (args) => getSteps(args.step_type),
+    get_reference_data: (args) => getRefData(args.data_type),
+    validate_automation_data: (args) => validate(args.automation_data),
+    commit_workflow: (args) => commit(args.workflow_data)
+  };
+
+  const result = await runTurn({ messages, toolMap });
+  res.json(result); // { display_text, ui_suggestions }
+}
+
+3) Simple React UI to render quick replies
+
+// components/Chat.tsx
+export function Chat({ onSend }: { onSend: (text: string) => void }) {
+  const [history, setHistory] = useState<any[]>([]);
+  const [input, setInput] = useState("");
+
+  async function send(text: string) {
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ history, message: text })
+    }).then(r => r.json());
+
+    setHistory(h => [...h, { role: "user", content: text }, { role: "assistant", content: r.display_text }]);
+    // Render buttons from r.ui_suggestions
+    setQuickReplies(r.ui_suggestions ?? []);
+  }
+
+  return (
+    <div>
+      {/* messages ... */}
+      <div className="mt-3 flex gap-2">
+        {quickReplies.map((q: any) => (
+          <button key={q.id}
+            onClick={() => send(q.payload)}
+            className={`btn ${q.variant ?? "primary"}`}>
+            {q.label}
+          </button>
+        ))}
+      </div>
+      <form onSubmit={e => { e.preventDefault(); send(input); setInput(""); }}>
+        <input value={input} onChange={e => setInput(e.target.value)} />
+      </form>
+    </div>
+  );
+}
+
+
+⸻
+
+How to “tell” Cursor to use all this
+
+When you open a file and ask for help, start your prompt with:
+
+“Follow the project Rules. We use Responses API with the assistant_reply schema and quick-reply ui_suggestions. Please scaffold/update the server LLM client to run a tool-loop and return { display_text, ui_suggestions }, and update the React chat to render those buttons. Include my pmpt_… prompt in the request.”
+
+Cursor will then generate code consistent with your instructions. If it drifts, remind it: “Use /v1/responses (not chat/completions), include tools + strict schema, and return display_text + ui_suggestions.”Project architecture & API requirements
+	•	Use OpenAI Responses API (/v1/responses), not Chat Completions.
+	•	Always send:
+	•	model: "gpt-4.1-mini" (or my env OPENAI_MODEL)
+	•	temperature: 0
+	•	prompt: { id: "pmpt_68ae03fd6e6481908a8939a9e9272e130cf3d534ebfbb3d9" }
+	•	tools: include my capability functions:
+	•	get_available_triggers()
+	•	get_available_workflow_steps(step_type: "trigger" | "condition" | "action" | "delay")
+	•	get_reference_data(data_type: "admins" | "access_templates" | "triggers" | "organizations")
+	•	validate_automation_data(automation_data: object)
+	•	commit_workflow(workflow_data: object)
+	•	tool_choice: "auto"
+	•	response_format: strict JSON schema below.
+
+Structured output (strict schema)
+The assistant must always return this shape:
+
+{
+  "type": "json_schema",
+  "json_schema": {
+    "name": "assistant_reply",
+    "strict": true,
+    "schema": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "display_text": { "type": "string" },
+        "ui_suggestions": {
+          "type": "array",
+          "maxItems": 3,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "payload": { "type": "string" },
+              "variant": { "type": "string", "enum": ["primary","secondary","danger"] },
+              "tool_call": {
+                "type": "object",
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string" },
+                  "arguments": { "type": "object" }
+                },
+                "required": ["name","arguments"]
+              }
+            },
+            "required": ["id","label","payload"]
+          }
+        }
+      },
+      "required": ["display_text","ui_suggestions"]
+    }
+  }
+}
+
+Grounding rules (put in every request’s System message)
+	•	Before proposing any trigger/condition/action/delay/admin/template, call the relevant tools and use only returned values.
+	•	If the user asks for something not returned by tools, state it’s unsupported in Optix and suggest the closest supported option.
+	•	Ask one pointed clarification question at a time and include up to 3 ui_suggestions to continue.
+	•	Never expose internal tool args verbatim to the user; summarize plainly in display_text.
+
+Coding standards
+	•	Node/TypeScript server. Never expose API key in browser; all OpenAI calls from server.
+	•	Create a thin “LLM client” that: (1) sends request, (2) loops tool calls until a final model message, (3) returns { display_text, ui_suggestions }.
+	•	React client renders display_text and buttons from ui_suggestions. On click:
+	•	If tool_call present → call my server route for that tool and re-run the LLM turn.
+	•	Else send payload as the next user message.
+
+⸻
+
+Ask Cursor to generate these files
+
+1) Server LLM client (TypeScript)
+
+// lib/llm.ts
+import OpenAI from "openai";
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY! });
+
+const RESPONSE_SCHEMA = {/* paste the schema object from above */};
+
+type ToolMap = {
+  get_available_triggers: () => Promise<any>;
+  get_available_workflow_steps: (args: { step_type: "trigger"|"condition"|"action"|"delay" }) => Promise<any>;
+  get_reference_data: (args: { data_type: "admins"|"access_templates"|"triggers"|"organizations" }) => Promise<any>;
+  validate_automation_data: (args: { automation_data: any }) => Promise<any>;
+  commit_workflow: (args: { workflow_data: any }) => Promise<any>;
+};
+
+export async function runTurn({
+  messages,
+  toolMap
+}: {
+  messages: { role: "system"|"user"|"assistant"|"tool"; content: string }[];
+  toolMap: ToolMap;
+}) {
+  const req = {
+    model: process.env.OPENAI_MODEL ?? "gpt-4.1-mini",
+    temperature: 0,
+    prompt: { id: "pmpt_68ae03fd6e6481908a8939a9e9272e130cf3d534ebfbb3d9" },
+    input: messages,
+    tools: [
+      { type: "function", function: { name: "get_available_triggers", parameters: { type:"object", properties:{} } } },
+      { type: "function", function: { name: "get_available_workflow_steps", parameters: {
+        type:"object",
+        properties:{ step_type:{ type:"string", enum:["trigger","condition","action","delay"] }},
+        required:["step_type"]
+      } } },
+      { type: "function", function: { name: "get_reference_data", parameters: {
+        type:"object",
+        properties:{ data_type:{ type:"string", enum:["admins","access_templates","triggers","organizations"] }},
+        required:["data_type"]
+      } } },
+      { type: "function", function: { name: "validate_automation_data", parameters: {
+        type:"object", properties:{ automation_data:{ type:"object" }}, required:["automation_data"]
+      } } },
+      { type: "function", function: { name: "commit_workflow", parameters: {
+        type:"object", properties:{ workflow_data:{ type:"object" }}, required:["workflow_data"]
+      } } }
+    ],
+    tool_choice: "auto" as const,
+    response_format: RESPONSE_SCHEMA
+  };
+
+  // Tool-loop
+  let resp = await openai.responses.create(req as any);
+  while (resp.output && resp.output[0]?.type === "tool_call") {
+    const call = resp.output[0].tool_call;
+    const name = call?.function?.name as keyof ToolMap;
+    const args = call?.function?.arguments ?? {};
+    const toolResult = await toolMap[name](args);
+
+    // Feed tool result back in and continue
+    resp = await openai.responses.create({
+      ...req,
+      input: [
+        ...messages,
+        { role: "tool", content: JSON.stringify({ name, result: toolResult }) }
+      ]
+    } as any);
+  }
+
+  // Final structured reply
+  const parsed = (resp as any).output_parsed;
+  return parsed; // { display_text, ui_suggestions }
+}
+
+2) Minimal server route
+
+// pages/api/chat.ts (Next.js) or routes/chat.ts (Express)
+import { runTurn } from "@/lib/llm";
+import { getTriggers, getSteps, getRefData, validate, commit } from "@/lib/optixApi";
+
+export default async function handler(req, res) {
+  const { history, message } = req.body;
+  const system = {
+    role: "system",
+    content: "Before proposing options, call tools and use only returned values. Unsupported → say so and suggest nearest supported."
+  };
+  const messages = [system, ...history, { role: "user", content: message }];
+
+  const toolMap = {
+    get_available_triggers: () => getTriggers(),
+    get_available_workflow_steps: (args) => getSteps(args.step_type),
+    get_reference_data: (args) => getRefData(args.data_type),
+    validate_automation_data: (args) => validate(args.automation_data),
+    commit_workflow: (args) => commit(args.workflow_data)
+  };
+
+  const result = await runTurn({ messages, toolMap });
+  res.json(result); // { display_text, ui_suggestions }
+}
+
+3) Simple React UI to render quick replies
+
+// components/Chat.tsx
+export function Chat({ onSend }: { onSend: (text: string) => void }) {
+  const [history, setHistory] = useState<any[]>([]);
+  const [input, setInput] = useState("");
+
+  async function send(text: string) {
+    const r = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ history, message: text })
+    }).then(r => r.json());
+
+    setHistory(h => [...h, { role: "user", content: text }, { role: "assistant", content: r.display_text }]);
+    // Render buttons from r.ui_suggestions
+    setQuickReplies(r.ui_suggestions ?? []);
+  }
+
+  return (
+    <div>
+      {/* messages ... */}
+      <div className="mt-3 flex gap-2">
+        {quickReplies.map((q: any) => (
+          <button key={q.id}
+            onClick={() => send(q.payload)}
+            className={`btn ${q.variant ?? "primary"}`}>
+            {q.label}
+          </button>
+        ))}
+      </div>
+      <form onSubmit={e => { e.preventDefault(); send(input); setInput(""); }}>
+        <input value={input} onChange={e => setInput(e.target.value)} />
+      </form>
+    </div>
+  );
+}
+
+
+⸻
+
+How to “tell” Cursor to use all this
+
+When you open a file and ask for help, start your prompt with:
+
+“Follow the project Rules. We use Responses API with the assistant_reply schema and quick-reply ui_suggestions. Please scaffold/update the server LLM client to run a tool-loop and return { display_text, ui_suggestions }, and update the React chat to render those buttons. Include my pmpt_… prompt in the request.”
+
+Cursor will then generate code consistent with your instructions. If it drifts, remind it: “Use /v1/responses (not chat/completions), include tools + strict schema, and return display_text + ui_suggestions.”

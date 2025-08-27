@@ -2,7 +2,11 @@
     <div class="message" :class="message.role">
         <div class="message-container">
             <div class="message-content">
-                <div class="message-text" v-html="formatMessage(message.content)"></div>
+                <div v-if="isTyping" class="loading-indicator">
+                    <div class="pulsing-circle"></div>
+                </div>
+                <div v-else-if="isAssistantMessage && showTypingEffect" class="message-text typing-effect" v-html="displayedContent"></div>
+                <div v-else class="message-text" v-html="formatMessage(message.content)"></div>
             </div>
         </div>
     </div>
@@ -24,6 +28,41 @@ export default {
             default: false
         }
     },
+    data() {
+        return {
+            displayedContent: '',
+            showTypingEffect: false,
+            typingSpeed: 15, // milliseconds per character - much faster
+            currentIndex: 0,
+            fullText: ''
+        };
+    },
+    computed: {
+        isAssistantMessage() {
+            return this.message.role === 'assistant';
+        },
+        formattedContent() {
+            if (!this.message.content) return 'Processing...';
+            
+            // Simple markdown-like formatting
+            return this.message.content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
+                .replace(/\n/g, '<br>');
+        },
+
+    },
+    watch: {
+        message: {
+            handler(newMessage) {
+                if (this.isAssistantMessage && newMessage.content && !this.isTyping) {
+                    this.startTypingEffect();
+                }
+            },
+            immediate: true
+        }
+    },
     methods: {
         formatMessage(content) {
             if (this.isTyping) {
@@ -39,10 +78,32 @@ export default {
             return content
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                .replace(/`(.*?)`/g, '<code>$1</code>')
                 .replace(/\n/g, '<br>');
         },
-
-
+        startTypingEffect() {
+            this.showTypingEffect = true;
+            this.displayedContent = '';
+            this.currentIndex = 0;
+            this.fullText = this.formattedContent;
+            
+            this.typeNextCharacter();
+        },
+        typeNextCharacter() {
+            if (this.currentIndex < this.fullText.length) {
+                // Simple substring approach that preserves HTML
+                this.displayedContent = this.fullText.substring(0, this.currentIndex + 1);
+                this.currentIndex++;
+                setTimeout(() => {
+                    this.typeNextCharacter();
+                }, this.typingSpeed);
+            } else {
+                // Typing effect complete
+                setTimeout(() => {
+                    this.showTypingEffect = false;
+                }, 100); // Reduced delay for snappier feel
+            }
+        }
     }
 };
 </script>
@@ -96,6 +157,35 @@ export default {
     background: transparent;
 }
 
+.loading-indicator {
+    display: flex;
+    align-items: center;
+    padding: 8px 0;
+}
+
+.pulsing-circle {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #000000;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+    50% {
+        transform: scale(1.2);
+        opacity: 1;
+    }
+    100% {
+        transform: scale(0.8);
+        opacity: 0.5;
+    }
+}
+
 .typing-indicator {
     display: flex;
     gap: 4px;
@@ -117,6 +207,25 @@ export default {
     0%, 80%, 100% { transform: scale(0.8); opacity: 0.5; }
     40% { transform: scale(1); opacity: 1; }
 }
+
+.typing-effect {
+    animation: fadeIn 0.3s ease-out;
+    opacity: 0;
+    animation-fill-mode: forwards;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(3px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+
 
 /* Responsive design */
 @media (max-width: 768px) {

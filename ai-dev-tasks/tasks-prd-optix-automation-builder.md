@@ -25,7 +25,7 @@
 - `resources/js/components/AutomationPreview.test.js` - Unit tests for automation preview
 - `resources/js/components/MessageBubble.vue` - Individual message bubble component
 - `resources/js/components/MessageBubble.test.js` - Unit tests for message bubble
-- `resources/js/services/OpenAIService.js` - Service for OpenAI API integration
+- `resources/js/services/OpenAIService.js` - Service for OpenAI API integration with Responses API
 - `resources/js/services/OpenAIService.test.js` - Unit tests for OpenAI service
 - `resources/js/services/AutomationService.js` - Service for Optix API automation operations
 - `resources/js/services/AutomationService.test.js` - Unit tests for automation service
@@ -45,6 +45,8 @@
 - `resources/js/router/routes.js` - Frontend routes for the automation builder
 - `resources/js/graphql-queries/workflowAvailableSteps.graphql` - GraphQL query for available workflow steps
 - `resources/js/graphql-queries/workflowsCommit.graphql` - GraphQL mutation for committing workflows
+- `resources/js/graphql-queries/workflowTriggerEnumValues.graphql` - GraphQL query for workflow trigger enum values
+- `resources/js/graphql-queries/workflowActionEnumValues.graphql` - GraphQL query for workflow action enum values
 - `resources/js/graphql-queries/accessTemplates.graphql` - GraphQL query for access templates
 - `resources/js/graphql-queries/admins.graphql` - GraphQL query for admin users
 - `config/automation-builder.php` - Configuration file for automation builder settings
@@ -78,6 +80,11 @@
   - [x] 2.7 Create responsive design for iframe context
   - [x] 2.8 Add loading states and error message display
   - [x] 2.9 Implement message formatting for code blocks and automation previews
+  - [x] 2.10 Implement ChatGPT-like UI styling (message bubbles, input area, send button)
+  - [x] 2.11 Add pulsing black circle loading indicator
+  - [x] 2.12 Implement character-by-character typing effect with fade-in animation
+  - [x] 2.13 Add proper HTML formatting preservation during typing
+  - [x] 2.14 Optimize typing speed (15ms per character) for responsive feel
 
 - [x] 3.0 OpenAI Integration & Function Calling
   - [x] 3.1 Create OpenAIService for API communication
@@ -87,8 +94,12 @@
   - [x] 3.5 Add function calling for workflowsCommit mutation
   - [x] 3.6 Create function calling for reference data queries (admins, access templates)
   - [x] 3.7 Implement error handling for OpenAI API failures
-  - [ ] 3.8 Add rate limiting and retry logic for API calls
-  - [ ] 3.9 Create configuration system for OpenAI model parameters
+  - [x] 3.8 Add function calling for get_available_actions (workflow action types)
+  - [x] 3.9 Implement Responses API integration (not chat/completions)
+  - [x] 3.10 Add optimized conversation context management (last 4 messages)
+  - [x] 3.11 Implement token-efficient context strategy
+  - [ ] 3.12 Add rate limiting and retry logic for API calls
+  - [ ] 3.13 Create configuration system for OpenAI model parameters
 
 - [ ] 4.0 Automation Building & Preview System
   - [ ] 4.1 Create AutomationPreview component for real-time automation display
@@ -106,22 +117,23 @@
   - [ ] 5.2 Implement automatic saving of conversation and automation progress
   - [ ] 5.3 Add "Saving..." indicator with periodic updates
   - [ ] 5.4 Create progress restoration on page refresh/navigation
-  - [ ] 5.5 Implement graceful error handling for API validation failures
-  - [ ] 5.6 Add user-friendly error messages with actionable next steps
-  - [ ] 5.7 Create retry mechanisms for failed operations
-  - [ ] 5.8 Implement conversation context truncation for token management
+  - [x] 5.5 Implement graceful error handling for API validation failures
+  - [x] 5.6 Add user-friendly error messages with actionable next steps
+  - [x] 5.7 Create retry mechanisms for failed operations
+  - [x] 5.8 Implement conversation context truncation for token management
   - [ ] 5.9 Add session timeout handling and cleanup
 
 - [ ] 6.0 Backend Integration & API Routes
   - [ ] 6.1 Create AutomationBuilderController for backend operations
   - [ ] 6.2 Implement web routes for the automation builder canvas
-  - [ ] 6.3 Add GraphQL queries for workflowAvailableSteps
-  - [ ] 6.4 Create GraphQL mutation for workflowsCommit
-  - [ ] 6.5 Implement reference data queries (access templates, admins)
-  - [ ] 6.6 Add PHP OpenAI service for server-side AI operations
-  - [ ] 6.7 Create automation validation service
-  - [ ] 6.8 Implement session storage for automation progress
-  - [ ] 6.9 Add API rate limiting and security measures
+  - [x] 6.3 Add GraphQL queries for workflowAvailableSteps
+  - [x] 6.4 Create GraphQL mutation for workflowsCommit
+  - [x] 6.5 Implement reference data queries (access templates, admins)
+  - [x] 6.6 Add GraphQL queries for workflow trigger and action enum values
+  - [ ] 6.7 Add PHP OpenAI service for server-side AI operations
+  - [ ] 6.8 Create automation validation service
+  - [ ] 6.9 Implement session storage for automation progress
+  - [ ] 6.10 Add API rate limiting and security measures
 
 - [ ] 7.0 Testing & Quality Assurance
   - [ ] 7.1 Write unit tests for all Vue components
@@ -133,11 +145,21 @@
   - [ ] 7.7 Add performance tests for large conversation contexts
   - [ ] 7.8 Implement accessibility testing for the chat interface
 
-- [ ] 8.0 Documentation & Configuration
-  - [ ] 8.1 Create configuration file for automation builder settings
-  - [ ] 8.2 Document OpenAI integration and function calling setup
-  - [ ] 8.3 Add inline code documentation for complex logic
-  - [ ] 8.4 Create user guide for the automation builder interface
-  - [ ] 8.5 Document API endpoints and GraphQL queries
-  - [ ] 8.6 Add deployment and environment setup instructions
-  - [ ] 8.7 Create troubleshooting guide for common issues
+- [x] 8.0 UI/UX Enhancements & Polish
+  - [x] 8.1 Remove test elements and clean up interface
+  - [x] 8.2 Implement ChatGPT-like styling (message bubbles, input area, send button)
+  - [x] 8.3 Add pulsing black circle loading indicator
+  - [x] 8.4 Implement character-by-character typing effect with fade-in animation
+  - [x] 8.5 Optimize typing speed for responsive feel (15ms per character)
+  - [x] 8.6 Ensure proper HTML formatting preservation during typing
+  - [x] 8.7 Add proper spacing and paragraph breaks in typing animation
+  - [x] 8.8 Implement token-efficient conversation context management
+
+- [ ] 9.0 Documentation & Configuration
+  - [ ] 9.1 Create configuration file for automation builder settings
+  - [ ] 9.2 Document OpenAI integration and function calling setup
+  - [ ] 9.3 Add inline code documentation for complex logic
+  - [ ] 9.4 Create user guide for the automation builder interface
+  - [ ] 9.5 Document API endpoints and GraphQL queries
+  - [ ] 9.6 Add deployment and environment setup instructions
+  - [ ] 9.7 Create troubleshooting guide for common issues

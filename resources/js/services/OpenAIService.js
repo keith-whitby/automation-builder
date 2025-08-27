@@ -15,6 +15,7 @@ class OpenAIService {
         this.maxHistoryLength = 20; // Maximum conversation history length
         this.maxTokensPerRequest = 8000; // Maximum tokens per request
         this.promptId = 'pmpt_68ae03fd6e6481908a8939a9e9272e130cf3d534ebfbb3d9'; // Your specific prompt ID
+
     }
 
     /**
@@ -204,6 +205,43 @@ class OpenAIService {
     }
 
     /**
+     * Get smart context messages for efficient token usage
+     * @returns {Array} Optimized conversation context
+     */
+    getContextMessages() {
+        const messages = [...this.conversationHistory];
+        
+        // Always include system message
+        const systemMessage = messages.find(msg => msg.role === 'system');
+        const nonSystemMessages = messages.filter(msg => msg.role !== 'system');
+        
+        // Smart context strategy:
+        // 1. Keep the last 6 messages (3 user + 3 assistant pairs)
+        // 2. If conversation is short, keep all messages
+        // 3. If approaching token limit, keep only the last 4 messages
+        
+        let contextMessages = [];
+        
+        if (systemMessage) {
+            contextMessages.push(systemMessage);
+        }
+        
+        if (nonSystemMessages.length <= 6) {
+            // Short conversation - keep all messages
+            contextMessages.push(...nonSystemMessages);
+        } else if (this.isApproachingTokenLimit()) {
+            // Approaching limit - keep only last 4 messages
+            contextMessages.push(...nonSystemMessages.slice(-4));
+        } else {
+            // Normal case - keep last 6 messages
+            contextMessages.push(...nonSystemMessages.slice(-6));
+        }
+        
+        console.log(`Smart context: ${contextMessages.length} messages (${nonSystemMessages.length} total in history)`);
+        return contextMessages;
+    }
+
+    /**
      * Send a message to OpenAI and get response using Responses API
      * @param {string} userMessage - User's message
      * @param {Object} options - Additional options
@@ -224,7 +262,7 @@ class OpenAIService {
         // Add user message to history
         this.addMessage('user', userMessage);
 
-        // Prepare request payload for Responses API
+        // Prepare request payload for Responses API with optimized context
         const payload = {
             temperature: options.temperature || this.temperature,
             prompt: { "id": this.promptId },
@@ -232,10 +270,6 @@ class OpenAIService {
                 {
                     role: 'system',
                     content: 'You are Optix\'s Automation Assistant. Always call capability tools first and only use returned values. If a request is unsupported, say so and suggest the closest supported alternative.'
-                },
-                {
-                    role: 'user',
-                    content: userMessage
                 }
             ],
             tools: this.functions.map(func => {
@@ -249,6 +283,20 @@ class OpenAIService {
             }),
             tool_choice: 'auto' // Let OpenAI decide when to call tools
         };
+
+        // Add optimized conversation context (last 4 messages for efficiency)
+        const recentMessages = this.conversationHistory
+            .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+            .slice(-4); // Keep only last 4 messages for token efficiency
+
+        recentMessages.forEach(message => {
+            payload.input.push({
+                role: message.role,
+                content: message.content || ''
+            });
+        });
+
+        console.log(`Using ${recentMessages.length} recent messages for context`);
 
         try {
             console.log('Sending message to OpenAI Responses API:', { userMessage, payload });
@@ -270,6 +318,8 @@ class OpenAIService {
 
             const data = await response.json();
             console.log('OpenAI Responses API response:', data);
+
+
 
             // Handle the response format from Responses API
             console.log('Full response data:', JSON.stringify(data, null, 2));
@@ -408,7 +458,7 @@ class OpenAIService {
         // Add function result to conversation history
         this.addMessage('tool', JSON.stringify(result), null, functionCall.name);
 
-        // Prepare request payload for Responses API
+        // Prepare request payload for Responses API with optimized context
         const payload = {
             temperature: this.temperature,
             prompt: { "id": this.promptId },
@@ -418,15 +468,25 @@ class OpenAIService {
                     content: 'You are Optix\'s Automation Assistant. Always call capability tools first and only use returned values. If a request is unsupported, say so and suggest the closest supported alternative.'
                 },
                 {
-                    role: 'user',
-                    content: this.conversationHistory.find(msg => msg.role === 'user')?.content || ''
-                },
-                {
                     role: 'assistant',
                     content: `I called the ${functionCall.function.name} function and got the result: ${JSON.stringify(result)}`
                 }
             ]
         };
+
+        // Add recent conversation context for function results
+        const recentMessages = this.conversationHistory
+            .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+            .slice(-2); // Keep only last 2 messages for function results
+
+        recentMessages.forEach(message => {
+            payload.input.push({
+                role: message.role,
+                content: message.content || ''
+            });
+        });
+
+        console.log(`Using ${recentMessages.length} recent messages for function result context`);
 
         try {
             console.log('Sending function result to OpenAI Responses API:', { functionCall, result });
@@ -447,6 +507,8 @@ class OpenAIService {
 
             const data = await response.json();
             console.log('OpenAI Responses API function result response:', data);
+
+
             console.log('Response structure analysis:');
             console.log('- data.content:', data.content);
             console.log('- data.output:', data.output);
