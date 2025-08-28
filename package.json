@@ -26,5 +26,8 @@
         "vue-template-compiler": "^2.6.11",
         "vuetify": "^2.5.10",
         "vuetify-loader": "^1.7.3"
+    },
+    "dependencies": {
+        "node-fetch": "^3.3.2"
     }
 }

@@ -1,7 +1,6 @@
 ---
 alwaysApply: false
 ---
-
 Use OpenAI Responses API (/v1/responses), not chat/completions.
 Always include:
 - model from env, temperature 0

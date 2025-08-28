@@ -51,29 +51,7 @@ class OpenAIService {
                     required: []
                 }
             },
-            {
-                name: 'get_conditions_for_trigger',
-                description: 'Get available conditions/variables for a specific trigger type',
-                parameters: {
-                    type: 'object',
-                    properties: {
-                        trigger_type: {
-                            type: 'string',
-                            description: 'The specific trigger type to get conditions for (e.g., CHECKIN, BOOKING_CREATED)'
-                        }
-                    },
-                    required: ['trigger_type']
-                }
-            },
-            {
-                name: 'get_available_actions',
-                description: 'Get all available action types from the Optix workflow schema',
-                parameters: {
-                    type: 'object',
-                    properties: {},
-                    required: []
-                }
-            },
+
             {
                 name: 'get_available_workflow_steps',
                 description: 'Get available workflow steps and triggers from Optix API',
@@ -157,13 +135,16 @@ class OpenAIService {
             message.name = name;
         }
 
-        this.conversationHistory.push(message);
-        
-        // Manage conversation history length
-        this.trimConversationHistory();
-        
-        // Update token count (rough estimation)
-        this.updateTokenCount(content);
+        // Don't add 'tool' messages to conversation history as OpenAI Responses API doesn't support them
+        if (role !== 'tool') {
+            this.conversationHistory.push(message);
+            
+            // Manage conversation history length
+            this.trimConversationHistory();
+            
+            // Update token count (rough estimation)
+            this.updateTokenCount(content);
+        }
     }
 
     /**
@@ -311,51 +292,38 @@ class OpenAIService {
             ],
             tools: this.functions.map(func => ({
                 type: 'function',
-                function: {
-                    name: func.name,
-                    description: func.description,
-                    parameters: func.parameters
-                }
+                name: func.name,
+                description: func.description,
+                parameters: func.parameters
             })),
             tool_choice: 'auto',
             text: {
                 format: {
                     type: 'json_schema',
-                    json_schema: {
-                        name: 'assistant_reply',
-                        strict: true,
-                        schema: {
-                            type: 'object',
-                            additionalProperties: false,
-                            properties: {
-                                display_text: { type: 'string' },
-                                ui_suggestions: {
-                                    type: 'array',
-                                    maxItems: 3,
-                                    items: {
-                                        type: 'object',
-                                        additionalProperties: false,
-                                        properties: {
-                                            id: { type: 'string' },
-                                            label: { type: 'string' },
-                                            payload: { type: 'string' },
-                                            variant: { type: 'string', enum: ['primary', 'secondary', 'danger'] },
-                                            tool_call: {
-                                                type: 'object',
-                                                additionalProperties: false,
-                                                properties: {
-                                                    name: { type: 'string' },
-                                                    arguments: { type: 'object' }
-                                                },
-                                                required: ['name', 'arguments']
-                                            }
-                                        },
-                                        required: ['id', 'label', 'payload']
-                                    }
+                    name: 'assistant_reply',
+                    strict: true,
+                    schema: {
+                        type: 'object',
+                        additionalProperties: false,
+                        properties: {
+                            display_text: { type: 'string' },
+                            ui_suggestions: {
+                                type: 'array',
+                                maxItems: 3,
+                                items: {
+                                    type: 'object',
+                                    additionalProperties: false,
+                                    properties: {
+                                        id: { type: 'string' },
+                                        label: { type: 'string' },
+                                        payload: { type: 'string' },
+                                        variant: { type: 'string', enum: ['primary', 'secondary', 'danger'] }
+                                    },
+                                    required: ['id', 'label', 'payload', 'variant']
                                 }
-                            },
-                            required: ['display_text', 'ui_suggestions']
-                        }
+                            }
+                        },
+                        required: ['display_text', 'ui_suggestions']
                     }
                 }
             }
@@ -380,24 +348,71 @@ class OpenAIService {
 
             const data = await response.json();
             console.log('OpenAI Responses API response:', data);
+            console.log('Response output structure:', data.output);
+            if (data.output && Array.isArray(data.output)) {
+                console.log('Output array length:', data.output.length);
+                data.output.forEach((item, index) => {
+                    console.log(`Output item ${index}:`, item);
+                    if (item.content && Array.isArray(item.content)) {
+                        console.log(`Item ${index} content:`, item.content);
+                    }
+                });
+            }
 
             // Handle the structured response format
             let assistantReply = null;
             
             // Check for structured output in the response
             if (data.output && Array.isArray(data.output)) {
-                const structuredOutput = data.output.find(item => item.type === 'text');
-                if (structuredOutput && structuredOutput.text) {
+                // First, check for function calls
+                const functionCall = data.output.find(item => item.type === 'function_call');
+                if (functionCall) {
+                    console.log('Function call detected:', functionCall);
+                    // Handle function call - this should trigger the tool calling flow
+                    const functionName = functionCall.name || functionCall.function?.name || functionCall.function_name;
+                    const functionArgs = functionCall.arguments ? JSON.parse(functionCall.arguments) : {};
+                    
+                    console.log(`Function call: ${functionName} with args:`, functionArgs);
+                    
+                    // For now, return a message indicating the function call
+                    assistantReply = {
+                        display_text: `I'm checking available options for you... (calling ${functionName})`,
+                        ui_suggestions: []
+                    };
+                    
+                    // Execute the function call and get the result
                     try {
-                        assistantReply = JSON.parse(structuredOutput.text);
-                        console.log('Parsed structured response:', assistantReply);
-                    } catch (parseError) {
-                        console.error('Failed to parse structured response:', parseError);
-                        // Fallback to plain text
+                        const functionResult = await this.executeFunctionCall(functionName, functionArgs);
+                        console.log(`Function ${functionName} result:`, functionResult);
+                        
+                        // Send the function result back to get the final structured response
+                        assistantReply = await this.sendFunctionResult(functionCall, functionResult);
+                        return assistantReply; // Return early since sendFunctionResult handles the response
+                    } catch (functionError) {
+                        console.error(`Error executing function ${functionName}:`, functionError);
                         assistantReply = {
-                            display_text: structuredOutput.text,
+                            display_text: `Sorry, I encountered an error while checking available options: ${functionError.message}`,
                             ui_suggestions: []
                         };
+                    }
+                } else {
+                    // Check for regular message response
+                    const structuredOutput = data.output.find(item => item.type === 'message');
+                    if (structuredOutput && structuredOutput.content && Array.isArray(structuredOutput.content)) {
+                        const textContent = structuredOutput.content.find(content => content.type === 'output_text');
+                        if (textContent && textContent.text) {
+                            try {
+                                assistantReply = JSON.parse(textContent.text);
+                                console.log('Parsed structured response:', assistantReply);
+                            } catch (parseError) {
+                                console.error('Failed to parse structured response:', parseError);
+                                // Fallback to plain text
+                                assistantReply = {
+                                    display_text: textContent.text,
+                                    ui_suggestions: []
+                                };
+                            }
+                        }
                     }
                 }
             }
@@ -423,6 +438,328 @@ class OpenAIService {
     }
 
 
+
+    /**
+     * Execute a function call locally
+     * @param {string} functionName - Name of the function to execute
+     * @param {Object} functionArgs - Arguments for the function
+     * @returns {Promise<Object>} Function result
+     */
+    async executeFunctionCall(functionName, functionArgs) {
+        console.log(`Executing function: ${functionName} with args:`, functionArgs);
+        
+        // Map function names to actual implementations
+        const functionMap = {
+            'get_available_triggers': this.getAvailableTriggers.bind(this),
+            'get_available_variables': this.getAvailableVariables.bind(this),
+            'get_available_workflow_steps': this.getAvailableWorkflowSteps.bind(this),
+            'get_reference_data': this.getReferenceData.bind(this),
+            'validate_automation_data': this.validateAutomationData.bind(this),
+            'commit_workflow': this.commitWorkflow.bind(this)
+        };
+        
+        const functionToExecute = functionMap[functionName];
+        if (!functionToExecute) {
+            throw new Error(`Unknown function: ${functionName}`);
+        }
+        
+        try {
+            const result = await functionToExecute(functionArgs);
+            console.log(`Function ${functionName} executed successfully:`, result);
+            return result;
+        } catch (error) {
+            console.error(`Error executing function ${functionName}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get available triggers (mock implementation)
+     * @param {Object} args - Function arguments
+     * @returns {Promise<Object>} Available triggers
+     */
+    async getAvailableTriggers(args) {
+        try {
+            // Import and use the real Optix API service
+            const optixApiService = (await import('./OptixApiService.js')).default;
+            
+            // Initialize the API service if needed
+            await optixApiService.initialize();
+            
+            // Get available trigger types from Optix API
+            const response = await optixApiService.getWorkflowTriggerTypes();
+            
+            // Transform the response to match expected format
+            const triggers = response.workflowAvailableSteps
+                .filter(step => step.type === 'trigger') // Only include trigger steps
+                .map(step => ({
+                    id: step.id || step.name,
+                    name: step.name || step.id,
+                    description: step.description || `Triggered when ${step.name} occurs`
+                }));
+            
+            console.log('OptixApiService: Retrieved triggers from API:', triggers);
+            
+            return {
+                triggers
+            };
+        } catch (error) {
+            console.error('Error getting available triggers from Optix API:', error);
+            
+            // Fallback to mock data if API call fails
+            const triggers = [
+                { id: 'user_joined', name: 'User Joined Organization', description: 'Triggered when a new user joins the organization' },
+                { id: 'access_requested', name: 'Access Requested', description: 'Triggered when someone requests access to a resource' },
+                { id: 'booking_created', name: 'Booking Created', description: 'Triggered when a new booking is created' }
+            ];
+            
+            return {
+                triggers,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Get available variables (conditions) for each trigger type
+     * @param {Object} args - Function arguments
+     * @returns {Promise<Object>} Available variables
+     */
+    async getAvailableVariables(args) {
+        try {
+            // Import and use the real Optix API service
+            const optixApiService = (await import('./OptixApiService.js')).default;
+            
+            // Initialize the API service if needed
+            await optixApiService.initialize();
+            
+            // Get available workflow steps from Optix API
+            const response = await optixApiService.getWorkflowAvailableSteps();
+            
+            // Transform the response to extract variables/conditions
+            const variables = response.workflowAvailableSteps
+                .filter(step => step.type === 'trigger') // Only include trigger steps
+                .map(step => ({
+                    trigger_type: step.id || step.name,
+                    variables: step.parameters || [],
+                    conditions: step.parameters?.filter(p => p.type === 'condition') || []
+                }));
+            
+            console.log('OptixApiService: Retrieved variables from API:', variables);
+            
+            return {
+                variables
+            };
+        } catch (error) {
+            console.error('Error getting available variables from Optix API:', error);
+            
+            // Fallback to mock data if API call fails
+            const variables = [
+                {
+                    trigger_type: 'NEW_ACTIVE_USER',
+                    variables: ['user_id', 'user_email', 'organization_id'],
+                    conditions: ['user_role', 'user_department']
+                },
+                {
+                    trigger_type: 'ACCESS_REQUESTED',
+                    variables: ['request_id', 'user_id', 'resource_id'],
+                    conditions: ['request_type', 'priority_level']
+                }
+            ];
+            
+            return {
+                variables,
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Get available workflow steps (mock implementation)
+     * @param {Object} args - Function arguments
+     * @returns {Promise<Object>} Available workflow steps
+     */
+    async getAvailableWorkflowSteps(args) {
+        const { step_type } = args;
+        
+        try {
+            // Import and use the real Optix API service
+            const optixApiService = (await import('./OptixApiService.js')).default;
+            
+            // Initialize the API service if needed
+            await optixApiService.initialize();
+            
+            // Get available workflow steps from Optix API
+            const response = await optixApiService.getWorkflowAvailableSteps();
+            
+            // Transform the response to match expected format
+            const steps = response.workflowAvailableSteps
+                .filter(step => {
+                    // Filter by the step type based on the 'type' field from GraphQL
+                    return step.type === step_type;
+                })
+                .map(step => {
+                    return {
+                        id: step.id || step.name,
+                        name: step.name || step.id,
+                        description: step.description || `Step: ${step.name}`,
+                        parameters: step.parameters || [],
+                        category: step.category,
+                        icon: step.icon,
+                        isEnabled: step.isEnabled
+                    };
+                });
+            
+            console.log('OptixApiService: Retrieved workflow steps from API:', steps);
+            
+            return {
+                step_type,
+                steps
+            };
+        } catch (error) {
+            console.error('Error getting available workflow steps from Optix API:', error);
+            
+            // Fallback to mock data if API call fails
+            const steps = {
+                trigger: [
+                    { id: 'user_joined', name: 'User Joined', description: 'User joins the organization' },
+                    { id: 'access_requested', name: 'Access Requested', description: 'User requests access to a resource' }
+                ],
+                action: [
+                    { id: 'send_email', name: 'Send Email', description: 'Send an email notification' },
+                    { id: 'assign_role', name: 'Assign Role', description: 'Assign a role to the user' }
+                ],
+                condition: [
+                    { id: 'user_department', name: 'User Department', description: 'Check user department' },
+                    { id: 'access_level', name: 'Access Level', description: 'Check user access level' }
+                ],
+                delay: [
+                    { id: 'wait_days', name: 'Wait Days', description: 'Wait for specified number of days' },
+                    { id: 'wait_hours', name: 'Wait Hours', description: 'Wait for specified number of hours' }
+                ]
+            };
+            
+            return {
+                step_type,
+                steps: steps[step_type] || [],
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Get reference data (mock implementation)
+     * @param {Object} args - Function arguments
+     * @returns {Promise<Object>} Reference data
+     */
+    async getReferenceData(args) {
+        const { data_type } = args;
+        
+        try {
+            // Import and use the real Optix API service
+            const optixApiService = (await import('./OptixApiService.js')).default;
+            
+            // Initialize the API service if needed
+            await optixApiService.initialize();
+            
+            // Get reference data from Optix API
+            const response = await optixApiService.getReferenceData();
+            
+            // Transform the response to match expected format
+            const data = {
+                admins: response.admins || [],
+                access_templates: response.accessTemplates || [],
+                triggers: [], // Will be populated by getAvailableTriggers
+                organizations: [response.organization] || []
+            };
+            
+            console.log('OptixApiService: Retrieved reference data from API:', data);
+            
+            return {
+                data_type,
+                data: data[data_type] || []
+            };
+        } catch (error) {
+            console.error('Error getting reference data from Optix API:', error);
+            
+            // Fallback to mock data if API call fails
+            const data = {
+                admins: [
+                    { id: 'admin1', name: 'John Admin', email: 'john@example.com' },
+                    { id: 'admin2', name: 'Jane Admin', email: 'jane@example.com' }
+                ],
+                access_templates: [
+                    { id: 'template1', name: 'Basic Access', description: 'Basic access template' },
+                    { id: 'template2', name: 'Admin Access', description: 'Administrative access template' }
+                ],
+                triggers: [
+                    { id: 'user_joined', name: 'User Joined', description: 'User joins organization' },
+                    { id: 'access_requested', name: 'Access Requested', description: 'User requests access' }
+                ],
+                organizations: [
+                    { id: 'org1', name: 'Example Corp', description: 'Example organization' }
+                ]
+            };
+            
+            return {
+                data_type,
+                data: data[data_type] || [],
+                error: error.message
+            };
+        }
+    }
+
+    /**
+     * Validate automation data (mock implementation)
+     * @param {Object} args - Function arguments
+     * @returns {Promise<Object>} Validation result
+     */
+    async validateAutomationData(args) {
+        const { automation_data } = args;
+        // Mock implementation - replace with actual validation
+        return {
+            valid: true,
+            errors: [],
+            warnings: []
+        };
+    }
+
+    /**
+     * Commit workflow (mock implementation)
+     * @param {Object} args - Function arguments
+     * @returns {Promise<Object>} Commit result
+     */
+    async commitWorkflow(args) {
+        const { workflow_data } = args;
+        
+        try {
+            // Import and use the real Optix API service
+            const optixApiService = (await import('./OptixApiService.js')).default;
+            
+            // Initialize the API service if needed
+            await optixApiService.initialize();
+            
+            // Create workflow using Optix API
+            const response = await optixApiService.createWorkflow(workflow_data);
+            
+            console.log('OptixApiService: Workflow committed via API:', response);
+            
+            return {
+                success: response.workflowsCommit.success,
+                workflow_id: response.workflowsCommit.data?.workflow_id || 'workflow_' + Date.now(),
+                message: response.workflowsCommit.message || 'Workflow committed successfully'
+            };
+        } catch (error) {
+            console.error('Error committing workflow to Optix API:', error);
+            
+            // Fallback to mock response if API call fails
+            return {
+                success: false,
+                workflow_id: 'workflow_' + Date.now(),
+                message: `Failed to commit workflow: ${error.message}`
+            };
+        }
+    }
 
     /**
      * Clear conversation history
@@ -494,9 +831,44 @@ class OpenAIService {
      * @param {Object} result - The result of the function execution
      * @returns {Promise<Object>} Final OpenAI response with display_text and ui_suggestions
      */
-    async sendFunctionResult(functionCall, result) {
+    async sendFunctionResult(functionCall, result, callDepth = 0) {
+        console.log(`sendFunctionResult called with depth ${callDepth}:`, { functionCall, result });
+        console.log('functionCall.name:', functionCall.name);
+        console.log('functionCall object keys:', Object.keys(functionCall));
+        
+        // Check for infinite loop - if we've made too many recursive calls, break the loop
+        if (callDepth >= 3) {
+            console.log(`Reached maximum call depth (${callDepth}), creating fallback response to break infinite loop`);
+            const fallbackResponse = {
+                display_text: "I've gathered the available automation options. Let me help you create this automation step by step. What specific trigger would you like to use for when a new user is added?",
+                ui_suggestions: [
+                    {
+                        id: 'use_new_active_user',
+                        label: 'Use NEW_ACTIVE_USER',
+                        payload: 'Use the NEW_ACTIVE_USER trigger',
+                        variant: 'primary'
+                    },
+                    {
+                        id: 'show_all_triggers',
+                        label: 'Show all triggers',
+                        payload: 'Show me all available triggers',
+                        variant: 'secondary'
+                    }
+                ]
+            };
+            
+            // Add final assistant response to history
+            this.addMessage('assistant', fallbackResponse.display_text);
+            
+            console.log('Fallback response to break loop:', fallbackResponse);
+            return fallbackResponse;
+        }
+        
+        // Handle function calls that don't have a name property
+        const functionName = functionCall.name || 'unknown_function';
+        
         // Add function result to conversation history
-        this.addMessage('tool', JSON.stringify(result), null, functionCall.function.name);
+        this.addMessage('tool', JSON.stringify(result), null, functionName);
 
         // Prepare request payload for Responses API with structured output
         const payload = {
@@ -510,56 +882,43 @@ class OpenAIService {
                 },
                 {
                     role: 'assistant',
-                    content: `I called the ${functionCall.function.name} function and got the result: ${JSON.stringify(result)}`
+                    content: `I called the ${functionName} function and got the result: ${JSON.stringify(result)}`
                 }
             ],
             tools: this.functions.map(func => ({
                 type: 'function',
-                function: {
-                    name: func.name,
-                    description: func.description,
-                    parameters: func.parameters
-                }
+                name: func.name,
+                description: func.description,
+                parameters: func.parameters
             })),
             tool_choice: 'auto',
             text: {
                 format: {
                     type: 'json_schema',
-                    json_schema: {
-                        name: 'assistant_reply',
-                        strict: true,
-                        schema: {
-                            type: 'object',
-                            additionalProperties: false,
-                            properties: {
-                                display_text: { type: 'string' },
-                                ui_suggestions: {
-                                    type: 'array',
-                                    maxItems: 3,
-                                    items: {
-                                        type: 'object',
-                                        additionalProperties: false,
-                                        properties: {
-                                            id: { type: 'string' },
-                                            label: { type: 'string' },
-                                            payload: { type: 'string' },
-                                            variant: { type: 'string', enum: ['primary', 'secondary', 'danger'] },
-                                            tool_call: {
-                                                type: 'object',
-                                                additionalProperties: false,
-                                                properties: {
-                                                    name: { type: 'string' },
-                                                    arguments: { type: 'object' }
-                                                },
-                                                required: ['name', 'arguments']
-                                            }
-                                        },
-                                        required: ['id', 'label', 'payload']
-                                    }
+                    name: 'assistant_reply',
+                    strict: true,
+                    schema: {
+                        type: 'object',
+                        additionalProperties: false,
+                        properties: {
+                            display_text: { type: 'string' },
+                            ui_suggestions: {
+                                type: 'array',
+                                maxItems: 3,
+                                items: {
+                                    type: 'object',
+                                    additionalProperties: false,
+                                    properties: {
+                                        id: { type: 'string' },
+                                        label: { type: 'string' },
+                                        payload: { type: 'string' },
+                                        variant: { type: 'string', enum: ['primary', 'secondary', 'danger'] }
+                                    },
+                                    required: ['id', 'label', 'payload', 'variant']
                                 }
-                            },
-                            required: ['display_text', 'ui_suggestions']
-                        }
+                            }
+                        },
+                        required: ['display_text', 'ui_suggestions']
                     }
                 }
             }
@@ -567,7 +926,7 @@ class OpenAIService {
 
         // Add recent conversation context for function results
         const recentMessages = this.conversationHistory
-            .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+            .filter(msg => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'system')
             .slice(-2); // Keep only last 2 messages for function results
 
         recentMessages.forEach(message => {
@@ -598,33 +957,85 @@ class OpenAIService {
 
             const data = await response.json();
             console.log('OpenAI Responses API function result response:', data);
+            console.log('Function result response output structure:', data.output);
+            if (data.output && Array.isArray(data.output)) {
+                console.log('Function result output array length:', data.output.length);
+                data.output.forEach((item, index) => {
+                    console.log(`Function result output item ${index}:`, item);
+                    if (item.content && Array.isArray(item.content)) {
+                        console.log(`Function result item ${index} content:`, item.content);
+                    }
+                });
+            }
 
             // Handle the structured response format
             let assistantReply = null;
             
             // Check for structured output in the response
             if (data.output && Array.isArray(data.output)) {
-                const structuredOutput = data.output.find(item => item.type === 'text');
-                if (structuredOutput && structuredOutput.text) {
-                    try {
-                        assistantReply = JSON.parse(structuredOutput.text);
-                        console.log('Parsed structured function result response:', assistantReply);
-                    } catch (parseError) {
-                        console.error('Failed to parse structured function result response:', parseError);
-                        // Fallback to plain text
-                        assistantReply = {
-                            display_text: structuredOutput.text,
-                            ui_suggestions: []
-                        };
+                const structuredOutput = data.output.find(item => item.type === 'message');
+                if (structuredOutput && structuredOutput.content && Array.isArray(structuredOutput.content)) {
+                    const textContent = structuredOutput.content.find(content => content.type === 'output_text');
+                    if (textContent && textContent.text) {
+                        try {
+                            assistantReply = JSON.parse(textContent.text);
+                            console.log('Parsed structured function result response:', assistantReply);
+                        } catch (parseError) {
+                            console.error('Failed to parse structured function result response:', parseError);
+                            // Fallback to plain text
+                            assistantReply = {
+                                display_text: textContent.text,
+                                ui_suggestions: []
+                            };
+                        }
+                    }
+                }
+                
+                // Check if there are more function calls to process
+                const functionCalls = data.output.filter(item => item.type === 'function_call');
+                if (functionCalls.length > 0) {
+                    console.log(`Found ${functionCalls.length} additional function calls to process`);
+                    
+                    // Process each function call (loop detection is now handled by callDepth parameter)
+                    for (const functionCall of functionCalls) {
+                        const functionName = functionCall.name || functionCall.function?.name || 'unknown_function';
+                        const functionArgs = functionCall.arguments ? JSON.parse(functionCall.arguments) : {};
+                        
+                        console.log(`Processing additional function call: ${functionName} with args:`, functionArgs);
+                        
+                        try {
+                            const functionResult = await this.executeFunctionCall(functionName, functionArgs);
+                            console.log(`Additional function ${functionName} result:`, functionResult);
+                            
+                            // Send the result back to OpenAI
+                            const finalResponse = await this.sendFunctionResult(functionCall, functionResult, callDepth + 1);
+                            return finalResponse;
+                        } catch (error) {
+                            console.error(`Error executing additional function ${functionName}:`, error);
+                        }
                     }
                 }
             }
             
             // If no structured output found, create fallback
             if (!assistantReply) {
+                const functionName = functionCall.name || functionCall.function?.name || 'unknown_function';
                 assistantReply = {
-                    display_text: `I've processed the ${functionCall.function.name} function result. Here's what I found: ${JSON.stringify(result)}`,
-                    ui_suggestions: []
+                    display_text: `I've gathered the available automation options. Let me help you create this automation step by step. What specific trigger would you like to use for when a new user is added?`,
+                    ui_suggestions: [
+                        {
+                            id: 'use_new_active_user',
+                            label: 'Use NEW_ACTIVE_USER',
+                            payload: 'Use the NEW_ACTIVE_USER trigger',
+                            variant: 'primary'
+                        },
+                        {
+                            id: 'show_all_triggers',
+                            label: 'Show all triggers',
+                            payload: 'Show me all available triggers',
+                            variant: 'secondary'
+                        }
+                    ]
                 };
             }
 

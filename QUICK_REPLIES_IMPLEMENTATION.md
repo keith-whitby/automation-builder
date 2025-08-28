@@ -57,41 +57,42 @@ The OpenAI prompt uses this strict schema with the Responses API format:
   "text": {
     "format": {
       "type": "json_schema",
-      "json_schema": {
-        "name": "assistant_reply",
-        "strict": true,
-        "schema": {
-          "type": "object",
-          "additionalProperties": false,
-          "properties": {
-            "display_text": { "type": "string" },
-            "ui_suggestions": {
-              "type": "array",
-              "maxItems": 3,
-              "items": {
-                "type": "object",
-                "additionalProperties": false,
-                "properties": {
-                  "id": { "type": "string" },
-                  "label": { "type": "string" },
-                  "payload": { "type": "string" },
-                  "variant": { "type": "string", "enum": ["primary","secondary","danger"] },
-                  "tool_call": {
-                    "type": "object",
-                    "additionalProperties": false,
-                    "properties": {
-                      "name": { "type": "string" },
-                      "arguments": { "type": "object" }
-                    },
-                    "required": ["name","arguments"]
-                  }
-                },
-                "required": ["id","label","payload"]
-              }
+      "name": "assistant_reply",
+      "strict": true,
+      "schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "display_text": { "type": "string" },
+          "ui_suggestions": {
+            "type": "array",
+            "maxItems": 3,
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "id": { "type": "string" },
+                "label": { "type": "string" },
+                "payload": { "type": "string" },
+                "variant": { "type": "string", "enum": ["primary","secondary","danger"] },
+                "tool_call": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "properties": {
+                    "name": { "type": "string" },
+                    "arguments": { 
+                      "type": "object",
+                      "additionalProperties": false
+                    }
+                  },
+                  "required": ["name"]
+                }
+              },
+                                "required": ["id","label","payload","variant"]
             }
-          },
-          "required": ["display_text","ui_suggestions"]
-        }
+          }
+        },
+        "required": ["display_text","ui_suggestions"]
       }
     }
   }
