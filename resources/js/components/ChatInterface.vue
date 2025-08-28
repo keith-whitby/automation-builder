@@ -14,11 +14,11 @@
                             <div class="prompt-example" @click="sendMessage('Send a welcome email to new users when they join the organization')">
                                 "Send a welcome email to new users when they join the organization"
                             </div>
-                            <div class="prompt-example" @click="sendMessage('Notify admins when someone requests access to a sensitive resource')">
-                                "Notify admins when someone requests access to a sensitive resource"
+                            <div class="prompt-example" @click="sendMessage('Create a task when users raise an issue, wait 5 days then send a message')">
+                                "Create a task when users raise an issue, wait 5 days then send a message"
                             </div>
-                            <div class="prompt-example" @click="sendMessage('Automatically assign users to groups based on their department')">
-                                "Automatically assign users to groups based on their department"
+                            <div class="prompt-example" @click="sendMessage('Send an email to users 5 days after their invoice becomes due')">
+                                "Send an email to users 5 days after their invoice becomes due"
                             </div>
                         </div>
                     </div>
@@ -39,6 +39,7 @@
                 <MessageBubble 
                     :message="{ role: 'assistant', content: '', timestamp: new Date() }"
                     :is-typing="true"
+                    :status-message="statusMessage"
                 />
             </div>
         </div>
@@ -88,6 +89,10 @@ export default {
         isTyping: {
             type: Boolean,
             default: false
+        },
+        statusMessage: {
+            type: String,
+            default: ''
         }
     },
     data() {
@@ -153,12 +158,14 @@ export default {
     flex-direction: column;
     height: 100%;
     background: white;
+    overflow: hidden;
 }
 
 .messages-area {
     flex: 1;
     overflow-y: auto;
     padding: 0;
+    min-height: 0;
 }
 
 .welcome-message {
@@ -224,7 +231,8 @@ export default {
 
 .input-area {
     background: white;
-    padding: 20px 20px 40px 20px;
+    padding: 20px 20px 32px 20px;
+    border-top: none !important;
 }
 
 .input-container {
@@ -302,7 +310,20 @@ export default {
     }
     
     .input-area {
-        padding: 16px;
+        padding: 16px 16px 32px 16px;
+    }
+}
+
+/* Additional responsive breakpoints to ensure consistent bottom padding */
+@media (max-width: 480px) {
+    .input-area {
+        padding: 12px 12px 32px 12px;
+    }
+}
+
+@media (max-width: 320px) {
+    .input-area {
+        padding: 8px 8px 32px 8px;
     }
 }
 </style>

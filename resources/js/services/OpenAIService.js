@@ -15,7 +15,14 @@ class OpenAIService {
         this.maxHistoryLength = 20; // Maximum conversation history length
         this.maxTokensPerRequest = 8000; // Maximum tokens per request
         this.promptId = 'pmpt_68ae03fd6e6481908a8939a9e9272e130cf3d534ebfbb3d9'; // Your specific prompt ID
-
+        this.statusCallback = null;
+        
+        // Function call limiting
+        this.functionCallQuota = {
+            maxCallsPerMessage: 5, // Maximum function calls per user message
+            callsThisMessage: 0,
+            lastMessageId: null
+        };
     }
 
     /**
@@ -25,6 +32,56 @@ class OpenAIService {
     initialize(apiKey) {
         this.apiKey = apiKey;
         console.log('OpenAI Service initialized');
+    }
+
+    /**
+     * Set status callback for UI updates
+     * @param {Function} callback - Function to call with status updates
+     */
+    setStatusCallback(callback) {
+        this.statusCallback = callback;
+    }
+
+    /**
+     * Update status message
+     * @param {string} status - Status message to display
+     */
+    updateStatus(status) {
+        if (this.statusCallback) {
+            this.statusCallback(status);
+        }
+    }
+
+    /**
+     * Reset function call quota for a new message
+     * @param {string} messageId - Unique identifier for the message
+     */
+    resetFunctionCallQuota(messageId) {
+        if (this.functionCallQuota.lastMessageId !== messageId) {
+            this.functionCallQuota.callsThisMessage = 0;
+            this.functionCallQuota.lastMessageId = messageId;
+            console.log('Function call quota reset for new message:', messageId);
+        }
+    }
+
+    /**
+     * Check if we can make another function call
+     * @returns {boolean} True if function call is allowed
+     */
+    canMakeFunctionCall() {
+        const canCall = this.functionCallQuota.callsThisMessage < this.functionCallQuota.maxCallsPerMessage;
+        if (!canCall) {
+            console.log(`Function call quota exceeded: ${this.functionCallQuota.callsThisMessage}/${this.functionCallQuota.maxCallsPerMessage}`);
+        }
+        return canCall;
+    }
+
+    /**
+     * Increment function call counter
+     */
+    incrementFunctionCallCount() {
+        this.functionCallQuota.callsThisMessage++;
+        console.log(`Function call count: ${this.functionCallQuota.callsThisMessage}/${this.functionCallQuota.maxCallsPerMessage}`);
     }
 
     /**
@@ -268,6 +325,10 @@ class OpenAIService {
             throw new Error('OpenAI API key not initialized');
         }
 
+        // Generate unique message ID for quota tracking
+        const messageId = `msg_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+        this.resetFunctionCallQuota(messageId);
+
         // Check token limits before sending
         if (this.isApproachingTokenLimit()) {
             console.warn('Approaching token limit, trimming conversation history');
@@ -284,19 +345,20 @@ class OpenAIService {
             temperature: 0,
             prompt: { "id": this.promptId },
             input: [
-                {
-                    role: 'system',
-                    content: 'You are Optix\'s Automation Assistant. Always call capability tools first and only use returned values. If a request is unsupported, say so and suggest the closest supported alternative.'
-                },
+                // System message is handled by the prompt ID, no need for redundant instructions
                 ...this.getContextMessages().filter(msg => msg.role !== 'system')
             ],
-            tools: this.functions.map(func => ({
-                type: 'function',
-                name: func.name,
-                description: func.description,
-                parameters: func.parameters
-            })),
-            tool_choice: 'auto',
+            // Include tools in initial call to allow the model to request a tool
+            // After executing a tool, sendFunctionResult will disable tools to force user response
+            ...(this.canMakeFunctionCall() ? {
+                tools: this.functions.map(func => ({
+                    type: 'function',
+                    name: func.name,
+                    description: func.description,
+                    parameters: func.parameters
+                })),
+                tool_choice: 'auto'
+            } : {}),
             text: {
                 format: {
                     type: 'json_schema',
@@ -364,36 +426,59 @@ class OpenAIService {
             
             // Check for structured output in the response
             if (data.output && Array.isArray(data.output)) {
-                // First, check for function calls
-                const functionCall = data.output.find(item => item.type === 'function_call');
-                if (functionCall) {
-                    console.log('Function call detected:', functionCall);
-                    // Handle function call - this should trigger the tool calling flow
-                    const functionName = functionCall.name || functionCall.function?.name || functionCall.function_name;
-                    const functionArgs = functionCall.arguments ? JSON.parse(functionCall.arguments) : {};
+                // Check for function calls - handle all function calls from the initial response
+                const functionCalls = data.output.filter(item => item.type === 'function_call');
+                if (functionCalls.length > 0) {
+                    console.log(`Found ${functionCalls.length} function calls in initial response`);
                     
-                    console.log(`Function call: ${functionName} with args:`, functionArgs);
-                    
-                    // For now, return a message indicating the function call
-                    assistantReply = {
-                        display_text: `I'm checking available options for you... (calling ${functionName})`,
-                        ui_suggestions: []
-                    };
-                    
-                    // Execute the function call and get the result
-                    try {
-                        const functionResult = await this.executeFunctionCall(functionName, functionArgs);
-                        console.log(`Function ${functionName} result:`, functionResult);
+                    // Check if we can make function calls
+                    if (!this.canMakeFunctionCall()) {
+                        console.log('Function call quota exceeded, cannot provide response without OpenAI');
+                        throw new Error('Function call quota exceeded. Please try again with a more specific request.');
+                    } else {
+                        // Execute all function calls and collect results
+                        const functionResults = [];
+                        for (const functionCall of functionCalls) {
+                            const functionName = functionCall.name || functionCall.function?.name || functionCall.function_name;
+                            const functionArgs = functionCall.arguments ? JSON.parse(functionCall.arguments) : {};
+                            
+                            console.log(`Executing function call: ${functionName} with args:`, functionArgs);
+                            
+                            // Check quota before each function call
+                            if (!this.canMakeFunctionCall()) {
+                                console.log('Function call quota exceeded during processing, stopping');
+                                break;
+                            }
+                            
+                            try {
+                                this.incrementFunctionCallCount();
+                                const functionResult = await this.executeFunctionCall(functionName, functionArgs);
+                                console.log(`Function ${functionName} result:`, functionResult);
+                                
+                                // Add function result to conversation history
+                                this.addMessage('tool', JSON.stringify(functionResult), null, functionName);
+                                functionResults.push({ functionName, result: functionResult });
+                            } catch (error) {
+                                console.error(`Error executing function ${functionName}:`, error);
+                            }
+                        }
                         
-                        // Send the function result back to get the final structured response
-                        assistantReply = await this.sendFunctionResult(functionCall, functionResult);
-                        return assistantReply; // Return early since sendFunctionResult handles the response
-                    } catch (functionError) {
-                        console.error(`Error executing function ${functionName}:`, functionError);
-                        assistantReply = {
-                            display_text: `Sorry, I encountered an error while checking available options: ${functionError.message}`,
-                            ui_suggestions: []
-                        };
+                        // If we have function results, send them all together in one final call with tools disabled
+                        if (functionResults.length > 0) {
+                            console.log('Sending all function results together with tools disabled:', functionResults);
+                            
+                            // Create a combined result message
+                            const combinedResult = functionResults.map(fr => 
+                                `${fr.functionName}: ${JSON.stringify(fr.result)}`
+                            ).join('\n');
+                            
+                            // Send all results back to OpenAI in one call with tools disabled
+                            assistantReply = await this.sendFunctionResult(
+                                functionCalls[0], // Use the first function call as reference
+                                { results: combinedResult }
+                            );
+                            return assistantReply;
+                        }
                     }
                 } else {
                     // Check for regular message response
@@ -417,12 +502,15 @@ class OpenAIService {
                 }
             }
             
-            // If no structured output found, create fallback
+            // If no structured output found, we cannot provide a response without OpenAI
             if (!assistantReply) {
-                assistantReply = {
-                    display_text: 'I received your message but encountered an issue processing the response.',
-                    ui_suggestions: []
-                };
+                throw new Error('No response received from OpenAI. Please try again.');
+            }
+
+            // Safety check to ensure assistantReply has the required structure
+            if (!assistantReply.display_text) {
+                console.error('Invalid assistant reply structure:', assistantReply);
+                throw new Error('Invalid response structure received from OpenAI. Please try again.');
             }
 
             // Add assistant response to history
@@ -433,6 +521,12 @@ class OpenAIService {
 
         } catch (error) {
             console.error('Error sending message to OpenAI:', error);
+            
+            // If it's a quota exceeded error, we can't provide a response without OpenAI
+            if (error.message.includes('Function call quota exceeded')) {
+                throw new Error('I reached my limit for function calls. Please try again with a more specific request or ask me to help you with a simpler workflow.');
+            }
+            
             throw error;
         }
     }
@@ -447,6 +541,19 @@ class OpenAIService {
      */
     async executeFunctionCall(functionName, functionArgs) {
         console.log(`Executing function: ${functionName} with args:`, functionArgs);
+        
+        // Update status based on function name
+        const statusMessages = {
+            'get_available_triggers': 'Fetching available triggers...',
+            'get_available_variables': 'Getting available variables...',
+            'get_available_workflow_steps': `Fetching available ${functionArgs.step_type || 'workflow'} steps...`,
+            'get_reference_data': `Getting ${functionArgs.data_type || 'reference'} data...`,
+            'validate_automation_data': 'Validating automation data...',
+            'commit_workflow': 'Committing workflow...'
+        };
+        
+        const statusMessage = statusMessages[functionName] || `Executing ${functionName}...`;
+        this.updateStatus(statusMessage);
         
         // Map function names to actual implementations
         const functionMap = {
@@ -491,11 +598,11 @@ class OpenAIService {
             
             // Transform the response to match expected format
             const triggers = response.workflowAvailableSteps
-                .filter(step => step.type === 'trigger') // Only include trigger steps
+                .filter(step => step.trigger_type) // Only include trigger steps
                 .map(step => ({
-                    id: step.id || step.name,
-                    name: step.name || step.id,
-                    description: step.description || `Triggered when ${step.name} occurs`
+                    id: step.trigger_type,
+                    name: step.trigger_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                    description: `Triggered when ${step.trigger_type.replace(/_/g, ' ')} occurs`
                 }));
             
             console.log('OptixApiService: Retrieved triggers from API:', triggers);
@@ -538,11 +645,11 @@ class OpenAIService {
             
             // Transform the response to extract variables/conditions
             const variables = response.workflowAvailableSteps
-                .filter(step => step.type === 'trigger') // Only include trigger steps
+                .filter(step => step.trigger_type) // Only include trigger steps
                 .map(step => ({
-                    trigger_type: step.id || step.name,
-                    variables: step.parameters || [],
-                    conditions: step.parameters?.filter(p => p.type === 'condition') || []
+                    trigger_type: step.trigger_type,
+                    variables: step.variables || [],
+                    conditions: step.variables || []
                 }));
             
             console.log('OptixApiService: Retrieved variables from API:', variables);
@@ -589,26 +696,57 @@ class OpenAIService {
             // Initialize the API service if needed
             await optixApiService.initialize();
             
-            // Get available workflow steps from Optix API
-            const response = await optixApiService.getWorkflowAvailableSteps();
+            let steps = [];
             
-            // Transform the response to match expected format
-            const steps = response.workflowAvailableSteps
-                .filter(step => {
-                    // Filter by the step type based on the 'type' field from GraphQL
-                    return step.type === step_type;
-                })
-                .map(step => {
-                    return {
-                        id: step.id || step.name,
-                        name: step.name || step.id,
-                        description: step.description || `Step: ${step.name}`,
-                        parameters: step.parameters || [],
-                        category: step.category,
-                        icon: step.icon,
-                        isEnabled: step.isEnabled
-                    };
-                });
+            if (step_type === 'action') {
+                // For actions, use the enum query
+                const response = await optixApiService.getWorkflowActionTypes();
+                steps = response.__type.enumValues.map(enumValue => ({
+                    id: enumValue.name,
+                    name: enumValue.name.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                    description: enumValue.description || `Action: ${enumValue.name.replace(/_/g, ' ')}`,
+                    parameters: []
+                }));
+            } else {
+                // For triggers, conditions, delays - use the workflowAvailableSteps query
+                const response = await optixApiService.getWorkflowAvailableSteps();
+                
+                // Transform the response to match expected format
+                steps = response.workflowAvailableSteps
+                    .filter(step => {
+                        // Filter by the step type based on the available fields
+                        if (step_type === 'trigger') return step.trigger_type;
+                        if (step_type === 'condition') return step.condition_operation;
+                        if (step_type === 'delay') return step.workflow_step_id; // Delay steps have workflow_step_id
+                        return true;
+                    })
+                    .map(step => {
+                        if (step_type === 'trigger') {
+                            return {
+                                id: step.trigger_type,
+                                name: step.trigger_type.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                                description: `Trigger: ${step.trigger_type.replace(/_/g, ' ')}`,
+                                variables: step.variables || []
+                            };
+                        } else if (step_type === 'condition') {
+                            return {
+                                id: step.condition_operation,
+                                name: step.condition_operation.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+                                description: `Condition: ${step.condition_operation.replace(/_/g, ' ')}`,
+                                parameters: []
+                            };
+                        } else if (step_type === 'delay') {
+                            return {
+                                id: step.workflow_step_id,
+                                name: 'Delay',
+                                description: 'Delay workflow execution',
+                                parameters: []
+                            };
+                        }
+                        return null;
+                    })
+                    .filter(step => step !== null);
+            }
             
             console.log('OptixApiService: Retrieved workflow steps from API:', steps);
             
@@ -826,72 +964,218 @@ class OpenAIService {
     }
 
     /**
-     * Send function result back to OpenAI to get final response using Responses API with structured output
-     * @param {Object} functionCall - The original function call
-     * @param {Object} result - The result of the function execution
-     * @returns {Promise<Object>} Final OpenAI response with display_text and ui_suggestions
+     * Check if the assistant is narrating tool usage
+     * @param {string} displayText - The display text to check
+     * @returns {boolean} True if narrating tool usage
      */
-    async sendFunctionResult(functionCall, result, callDepth = 0) {
-        console.log(`sendFunctionResult called with depth ${callDepth}:`, { functionCall, result });
-        console.log('functionCall.name:', functionCall.name);
-        console.log('functionCall object keys:', Object.keys(functionCall));
+    isNarratingToolUsage(displayText) {
+        const lowerText = displayText.toLowerCase();
         
-        // Check for infinite loop - if we've made too many recursive calls, break the loop
-        if (callDepth >= 3) {
-            console.log(`Reached maximum call depth (${callDepth}), creating fallback response to break infinite loop`);
-            const fallbackResponse = {
-                display_text: "I've gathered the available automation options. Let me help you create this automation step by step. What specific trigger would you like to use for when a new user is added?",
-                ui_suggestions: [
-                    {
-                        id: 'use_new_active_user',
-                        label: 'Use NEW_ACTIVE_USER',
-                        payload: 'Use the NEW_ACTIVE_USER trigger',
-                        variant: 'primary'
-                    },
-                    {
-                        id: 'show_all_triggers',
-                        label: 'Show all triggers',
-                        payload: 'Show me all available triggers',
-                        variant: 'secondary'
-                    }
-                ]
-            };
-            
-            // Add final assistant response to history
-            this.addMessage('assistant', fallbackResponse.display_text);
-            
-            console.log('Fallback response to break loop:', fallbackResponse);
-            return fallbackResponse;
+        // Check if it starts with "I called" or similar patterns
+        if (lowerText.startsWith('i called') || lowerText.startsWith('i executed') || lowerText.startsWith('i ran')) {
+            return true;
         }
         
-        // Handle function calls that don't have a name property
-        const functionName = functionCall.name || 'unknown_function';
+        // Check if it contains tool/function names
+        const toolNames = this.functions.map(func => func.name.toLowerCase());
+        const hasToolName = toolNames.some(toolName => lowerText.includes(toolName));
         
-        // Add function result to conversation history
-        this.addMessage('tool', JSON.stringify(result), null, functionName);
+        return hasToolName;
+    }
 
-        // Prepare request payload for Responses API with structured output
+    /**
+     * Retry the function result call with a system nudge to prevent tool narration
+     * @param {Object} functionCall - The original function call
+     * @param {Object} result - The result of the function execution
+     * @returns {Promise<Object>} The retry response
+     */
+    async retryWithSystemNudge(functionCall, result) {
+        const functionName = functionCall.name || functionCall.function?.name || functionCall.function_name;
+        
+        console.log('Retrying with system nudge to prevent tool narration');
+        
+        // Prepare request payload with system nudge
+        // IMPORTANT: Tools are completely disabled to force user response
         const payload = {
             model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
             temperature: 0,
             prompt: { "id": this.promptId },
             input: [
+                // Add system nudge to prevent tool narration
                 {
                     role: 'system',
-                    content: 'You are Optix\'s Automation Assistant. Always call capability tools first and only use returned values. If a request is unsupported, say so and suggest the closest supported alternative.'
+                    content: 'Do not narrate tool usage. Ask the user exactly one question now. You cannot use any tools - respond directly to the user.'
                 },
+                // Function result
                 {
                     role: 'assistant',
                     content: `I called the ${functionName} function and got the result: ${JSON.stringify(result)}`
                 }
             ],
-            tools: this.functions.map(func => ({
-                type: 'function',
-                name: func.name,
-                description: func.description,
-                parameters: func.parameters
-            })),
-            tool_choice: 'auto',
+            // Explicitly disable tools by setting tool_choice to none
+            tool_choice: "none",
+            // NO tools included - this forces the model to respond to the user
+            text: {
+                format: {
+                    type: 'json_schema',
+                    name: 'assistant_reply',
+                    strict: true,
+                    schema: {
+                        type: 'object',
+                        additionalProperties: false,
+                        properties: {
+                            display_text: { type: 'string' },
+                            ui_suggestions: {
+                                type: 'array',
+                                maxItems: 3,
+                                items: {
+                                    type: 'object',
+                                    additionalProperties: false,
+                                    properties: {
+                                        id: { type: 'string' },
+                                        label: { type: 'string' },
+                                        payload: { type: 'string' },
+                                        variant: { type: 'string', enum: ['primary', 'secondary', 'danger'] }
+                                    },
+                                    required: ['id', 'label', 'payload', 'variant']
+                                }
+                            }
+                        },
+                        required: ['display_text', 'ui_suggestions']
+                    }
+                }
+            }
+        };
+
+        // Add recent conversation context
+        const recentMessages = this.conversationHistory
+            .filter(msg => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'system')
+            .slice(-2);
+
+        recentMessages.forEach(message => {
+            payload.input.push({
+                role: message.role,
+                content: message.content || ''
+            });
+        });
+
+        try {
+            console.log('Sending retry with system nudge');
+            console.log('Retry payload (should have NO tools):', JSON.stringify(payload, null, 2));
+            
+            const response = await fetch(`${this.baseUrl}/responses`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${this.apiKey}`
+                },
+                body: JSON.stringify(payload)
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(`OpenAI API error: ${errorData.error?.message || response.statusText}`);
+            }
+
+            const data = await response.json();
+            console.log('Retry response:', data);
+
+            // Handle the response (same logic as sendFunctionResult)
+            let assistantReply = null;
+            
+            if (data.output && Array.isArray(data.output)) {
+                const structuredOutput = data.output.find(item => item.type === 'message');
+                if (structuredOutput && structuredOutput.content && Array.isArray(structuredOutput.content)) {
+                    const textContent = structuredOutput.content.find(content => content.type === 'output_text');
+                    if (textContent && textContent.text) {
+                        try {
+                            assistantReply = JSON.parse(textContent.text);
+                        } catch (parseError) {
+                            assistantReply = {
+                                display_text: textContent.text,
+                                ui_suggestions: []
+                            };
+                        }
+                    }
+                }
+            }
+
+            // If still no response, create fallback
+            if (!assistantReply) {
+                assistantReply = {
+                    display_text: `Based on the information I found, what would you like to do next?`,
+                    ui_suggestions: []
+                };
+            }
+
+            // Add final assistant response to history
+            this.addMessage('assistant', assistantReply.display_text);
+
+            return assistantReply;
+
+        } catch (error) {
+            console.error('Error in retry with system nudge:', error);
+            // Fallback response if retry fails
+            return {
+                display_text: `I've gathered the information you requested. What would you like to do next?`,
+                ui_suggestions: []
+            };
+        }
+    }
+
+
+
+
+
+    /**
+     * Send function result back to OpenAI to get final response using Responses API with structured output
+     * @param {Object} functionCall - The original function call
+     * @param {Object} result - The result of the function execution
+     * @param {Array} callStack - Array of function calls in this chain to detect loops
+     * @returns {Promise<Object>} Final OpenAI response with display_text and ui_suggestions
+     */
+    async sendFunctionResult(functionCall, result, callStack = []) {
+        const functionName = functionCall.name || functionCall.function?.name || 'unknown_function';
+        console.log(`sendFunctionResult called for ${functionName}:`, { functionCall, result, callStack });
+        
+        // Check for infinite loop by detecting repeated function calls
+        const currentCallStack = [...callStack, functionName];
+        const functionCallCounts = {};
+        currentCallStack.forEach(fn => {
+            functionCallCounts[fn] = (functionCallCounts[fn] || 0) + 1;
+        });
+        
+        // If any function has been called more than 2 times, we have a loop
+        const hasLoop = Object.values(functionCallCounts).some(count => count > 2);
+        if (hasLoop) {
+            console.log(`Detected infinite loop in function calls:`, functionCallCounts);
+            console.log('Call stack:', currentCallStack);
+            
+            // Cannot provide response without OpenAI
+            throw new Error('Infinite loop detected in function calls. Please try again with a more specific request.');
+        }
+        
+        // Handle function calls that don't have a name property
+        // functionName is already declared above
+        
+        // Add function result to conversation history
+        this.addMessage('tool', JSON.stringify(result), null, functionName);
+
+        // Prepare request payload for Responses API with structured output
+        // After executing a tool, we disable tools to force the model to respond to the user
+        const payload = {
+            model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+            temperature: 0,
+            prompt: { "id": this.promptId },
+            input: [
+                // System message is handled by the prompt ID, no need for redundant instructions
+                {
+                    role: 'assistant',
+                    content: `I called the ${functionName} function and got the result: ${JSON.stringify(result)}`
+                }
+            ],
+            // Tools are disabled after executing a function call to force user response
+            // This prevents the model from making additional tool calls
             text: {
                 format: {
                     type: 'json_schema',
@@ -940,6 +1224,7 @@ class OpenAIService {
 
         try {
             console.log('Sending function result to OpenAI Responses API with structured output:', { functionCall, result });
+            console.log('Payload being sent (tools should be disabled):', JSON.stringify(payload, null, 2));
             
             const response = await fetch(`${this.baseUrl}/responses`, {
                 method: 'POST',
@@ -973,70 +1258,72 @@ class OpenAIService {
             
             // Check for structured output in the response
             if (data.output && Array.isArray(data.output)) {
+                console.log('Processing response output:', data.output);
+                
                 const structuredOutput = data.output.find(item => item.type === 'message');
                 if (structuredOutput && structuredOutput.content && Array.isArray(structuredOutput.content)) {
+                    console.log('Found structured output:', structuredOutput);
+                    
                     const textContent = structuredOutput.content.find(content => content.type === 'output_text');
                     if (textContent && textContent.text) {
+                        console.log('Found text content:', textContent.text);
                         try {
                             assistantReply = JSON.parse(textContent.text);
                             console.log('Parsed structured function result response:', assistantReply);
                         } catch (parseError) {
                             console.error('Failed to parse structured function result response:', parseError);
+                            console.log('Raw text content:', textContent.text);
                             // Fallback to plain text
                             assistantReply = {
                                 display_text: textContent.text,
                                 ui_suggestions: []
                             };
                         }
+                    } else {
+                        console.log('No text content found in structured output');
+                    }
+                } else {
+                    console.log('No structured output found, checking for plain text response');
+                    
+                    // Check if there's a plain text response when structured output fails
+                    const plainTextOutput = data.output.find(item => item.type === 'text');
+                    if (plainTextOutput && plainTextOutput.text) {
+                        console.log('Found plain text output:', plainTextOutput.text);
+                        assistantReply = {
+                            display_text: plainTextOutput.text,
+                            ui_suggestions: []
+                        };
+                    } else {
+                        console.log('No plain text output found either');
                     }
                 }
                 
-                // Check if there are more function calls to process
-                const functionCalls = data.output.filter(item => item.type === 'function_call');
-                if (functionCalls.length > 0) {
-                    console.log(`Found ${functionCalls.length} additional function calls to process`);
-                    
-                    // Process each function call (loop detection is now handled by callDepth parameter)
-                    for (const functionCall of functionCalls) {
-                        const functionName = functionCall.name || functionCall.function?.name || 'unknown_function';
-                        const functionArgs = functionCall.arguments ? JSON.parse(functionCall.arguments) : {};
-                        
-                        console.log(`Processing additional function call: ${functionName} with args:`, functionArgs);
-                        
-                        try {
-                            const functionResult = await this.executeFunctionCall(functionName, functionArgs);
-                            console.log(`Additional function ${functionName} result:`, functionResult);
-                            
-                            // Send the result back to OpenAI
-                            const finalResponse = await this.sendFunctionResult(functionCall, functionResult, callDepth + 1);
-                            return finalResponse;
-                        } catch (error) {
-                            console.error(`Error executing additional function ${functionName}:`, error);
-                        }
-                    }
-                }
+                // Note: Tools are disabled after executing a function call
+                // This prevents the model from making additional tool calls
+                // The model must now respond to the user with the function result
+            } else {
+                console.log('No output array found in response');
             }
             
-            // If no structured output found, create fallback
+            // If no structured output found, create a fallback response
             if (!assistantReply) {
-                const functionName = functionCall.name || functionCall.function?.name || 'unknown_function';
+                console.log('Creating fallback response based on function result');
                 assistantReply = {
-                    display_text: `I've gathered the available automation options. Let me help you create this automation step by step. What specific trigger would you like to use for when a new user is added?`,
-                    ui_suggestions: [
-                        {
-                            id: 'use_new_active_user',
-                            label: 'Use NEW_ACTIVE_USER',
-                            payload: 'Use the NEW_ACTIVE_USER trigger',
-                            variant: 'primary'
-                        },
-                        {
-                            id: 'show_all_triggers',
-                            label: 'Show all triggers',
-                            payload: 'Show me all available triggers',
-                            variant: 'secondary'
-                        }
-                    ]
+                    display_text: `I've retrieved the information you requested. Here's what I found: ${JSON.stringify(result, null, 2)}`,
+                    ui_suggestions: []
                 };
+            }
+
+            // Check if the assistant is narrating tool usage and retry if needed
+            if (assistantReply.display_text && this.isNarratingToolUsage(assistantReply.display_text)) {
+                console.log('Assistant is narrating tool usage, retrying with system nudge');
+                return await this.retryWithSystemNudge(functionCall, result);
+            }
+
+            // Safety check to ensure assistantReply has the required structure
+            if (!assistantReply.display_text) {
+                console.error('Invalid assistant reply structure:', assistantReply);
+                throw new Error('Invalid response structure received from OpenAI. Please try again.');
             }
 
             // Add final assistant response to history

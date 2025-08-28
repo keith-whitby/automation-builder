@@ -3,6 +3,7 @@
         <div class="message-container">
             <div class="message-content">
                 <div v-if="isTyping" class="loading-indicator">
+                    <div v-if="statusMessage" class="status-message">{{ statusMessage }}</div>
                     <div class="pulsing-circle"></div>
                 </div>
                 <div v-else-if="isAssistantMessage && showTypingEffect" class="message-text typing-effect" v-html="displayedContent"></div>
@@ -12,11 +13,10 @@
                 <div v-if="isAssistantMessage && message.ui_suggestions && message.ui_suggestions.length > 0" class="quick-replies">
                     <div class="quick-reply-buttons">
                         <button
-                            v-for="suggestion in message.ui_suggestions"
-                            :key="suggestion.id"
+                            v-for="(suggestion, index) in message.ui_suggestions"
+                            :key="`${suggestion.id}-${index}`"
                             @click="handleQuickReply(suggestion)"
-                            class="quick-reply-button"
-                            :class="getButtonVariant(suggestion.variant)"
+                            class="quick-reply-button secondary"
                         >
                             {{ suggestion.label }}
                         </button>
@@ -41,6 +41,10 @@ export default {
         isTyping: {
             type: Boolean,
             default: false
+        },
+        statusMessage: {
+            type: String,
+            default: ''
         }
     },
     data() {
@@ -65,8 +69,18 @@ export default {
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
                 .replace(/`(.*?)`/g, '<code>$1</code>')
                 .replace(/\n/g, '<br>');
-        },
-
+        }
+    },
+    mounted() {
+        this.$nextTick(() => {
+            this.forceSecondaryClass();
+            this.startContinuousFix();
+        });
+    },
+    beforeDestroy() {
+        if (this.fixInterval) {
+            clearInterval(this.fixInterval);
+        }
     },
     watch: {
         message: {
@@ -74,6 +88,9 @@ export default {
                 if (this.isAssistantMessage && newMessage.content && !this.isTyping) {
                     this.startTypingEffect();
                 }
+                this.$nextTick(() => {
+                    this.forceSecondaryClass();
+                });
             },
             immediate: true
         }
@@ -123,17 +140,38 @@ export default {
             // Emit event to parent component
             this.$emit('quick-reply', suggestion);
         },
-        getButtonVariant(variant) {
-            switch (variant) {
-                case 'secondary':
-                    return 'secondary';
-                case 'danger':
-                    return 'danger';
-                case 'primary':
-                default:
-                    return 'primary';
-            }
+        forceSecondaryClass() {
+            // Force all quick-reply buttons to have secondary class
+            const buttons = this.$el.querySelectorAll('.quick-reply-button');
+            buttons.forEach(button => {
+                button.classList.remove('primary');
+                button.classList.add('secondary');
+            });
+        },
+        startContinuousFix() {
+            // Set up a continuous interval to fix any buttons that get the primary class
+            this.fixInterval = setInterval(() => {
+                const buttons = document.querySelectorAll('.quick-reply-button.primary');
+                buttons.forEach(button => {
+                    button.classList.remove('primary');
+                    button.classList.add('secondary');
+                    // Force set inline styles with maximum priority
+                    button.style.setProperty('background', '#6b7280', 'important');
+                    button.style.setProperty('background-color', '#6b7280', 'important');
+                    button.style.setProperty('color', '#ffffff', 'important');
+                    button.style.setProperty('border-color', '#6b7280', 'important');
+                    // Also set the styles directly
+                    button.style.background = '#6b7280';
+                    button.style.backgroundColor = '#6b7280';
+                    button.style.color = '#ffffff';
+                    button.style.borderColor = '#6b7280';
+                    // Force remove any conflicting styles
+                    button.style.removeProperty('background-image');
+                    button.style.removeProperty('background-size');
+                });
+            }, 25); // Check every 25ms for even faster response
         }
+
     }
 };
 </script>
@@ -141,11 +179,6 @@ export default {
 <style scoped>
 .message {
     padding: 20px 0;
-    border-bottom: 1px solid #f0f0f0;
-}
-
-.message:last-child {
-    border-bottom: none;
 }
 
 .message-container {
@@ -189,8 +222,17 @@ export default {
 
 .loading-indicator {
     display: flex;
-    align-items: center;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
     padding: 8px 0;
+}
+
+.status-message {
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 400;
+    margin-bottom: 4px;
 }
 
 .pulsing-circle {
@@ -270,7 +312,7 @@ export default {
     padding: 8px 16px;
     border: 1px solid #d1d5db;
     border-radius: 20px;
-    background: white;
+    background: #f3f4f6;
     color: #374151;
     font-size: 14px;
     font-weight: 500;
@@ -283,30 +325,243 @@ export default {
 }
 
 .quick-reply-button:hover {
-    background: #f9fafb;
+    background: #e5e7eb;
     border-color: #9ca3af;
 }
 
-.quick-reply-button.primary {
-    background: #000000;
-    color: white;
-    border-color: #000000;
+.message .quick-reply-button.primary {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
 }
 
-.quick-reply-button.primary:hover {
-    background: #333333;
-    border-color: #333333;
+.message .quick-reply-button.primary:hover {
+    background: #e5e7eb !important;
+    border-color: #9ca3af !important;
 }
+
+/* Override any global .btn-primary styles that might be applied */
+.message .quick-reply-button.primary.btn-primary {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+.message .quick-reply-button.primary.btn-primary:hover {
+    background: #e5e7eb !important;
+    border-color: #9ca3af !important;
+}
+
+/* Additional specificity to override any global button styles */
+.message .quick-reply-buttons .quick-reply-button.primary {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+.message .quick-reply-buttons .quick-reply-button.primary:hover {
+    background: #e5e7eb !important;
+    border-color: #9ca3af !important;
+}
+
+/* Override global Optix UI Kit button styles */
+.message .quick-reply-buttons .quick-reply-button.primary,
+.message .quick-reply-buttons .quick-reply-button.primary:focus,
+.message .quick-reply-buttons .quick-reply-button.primary:active,
+.message .quick-reply-buttons .quick-reply-button.primary:visited {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+}
+
+/* Maximum specificity override for any global button styles */
+.message .quick-reply-buttons .quick-reply-button.primary[class*="primary"] {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+/* Override any CSS custom properties that might be setting colors */
+.message .quick-reply-buttons .quick-reply-button.primary {
+    --optix-theme-defaultFontColor: #374151 !important;
+    --optix-theme-accentColor: #f3f4f6 !important;
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+/* Nuclear option - override everything with maximum specificity */
+.message .quick-reply-buttons .quick-reply-button.primary,
+.message .quick-reply-buttons .quick-reply-button.primary * {
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+/* Override any inline styles or computed styles */
+.message .quick-reply-buttons .quick-reply-button.primary {
+    background-color: #f3f4f6 !important;
+    background-image: none !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+    border-style: solid !important;
+    border-width: 1px !important;
+}
+
+/* Override all possible global button styles */
+.message .quick-reply-buttons .quick-reply-button.primary,
+.message .quick-reply-buttons .quick-reply-button.primary:not([disabled]),
+.message .quick-reply-buttons .quick-reply-button.primary:not(.disabled) {
+    background: #f3f4f6 !important;
+    background-color: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+    --optix-theme-defaultFontColor: #374151 !important;
+    --optix-theme-accentColor: #f3f4f6 !important;
+    --optix-theme-accentTextColor: #374151 !important;
+}
+
+/* Force override for any global button styles */
+.message .quick-reply-buttons .quick-reply-button.primary {
+    all: unset !important;
+    display: inline-block !important;
+    padding: 8px 16px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 20px !important;
+    background: #f3f4f6 !important;
+    color: #374151 !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    white-space: nowrap !important;
+    max-width: 200px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* Target the button element directly with maximum specificity */
+.message .quick-reply-buttons button.quick-reply-button.primary,
+.message .quick-reply-buttons .quick-reply-button.primary[type="button"],
+.message .quick-reply-buttons .quick-reply-button.primary[type="submit"] {
+    all: unset !important;
+    display: inline-block !important;
+    padding: 8px 16px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 20px !important;
+    background: #f3f4f6 !important;
+    background-color: #f3f4f6 !important;
+    color: #374151 !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    white-space: nowrap !important;
+    max-width: 200px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    box-sizing: border-box !important;
+}
+
+/* Override any global button styles with maximum specificity */
+.message .quick-reply-buttons .quick-reply-button.primary,
+.message .quick-reply-buttons .quick-reply-button.primary:hover,
+.message .quick-reply-buttons .quick-reply-button.primary:focus,
+.message .quick-reply-buttons .quick-reply-button.primary:active,
+.message .quick-reply-buttons .quick-reply-button.primary:visited {
+    background: #f3f4f6 !important;
+    background-color: #f3f4f6 !important;
+    background-image: none !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+    border-style: solid !important;
+    border-width: 1px !important;
+    --optix-theme-defaultFontColor: #374151 !important;
+    --optix-theme-accentColor: #f3f4f6 !important;
+    --optix-theme-accentTextColor: #374151 !important;
+    --optix-theme-defaultFontRGBColor: 55, 65, 81 !important;
+    --optix-theme-accentRGBColor: 243, 244, 246 !important;
+}
+
+/* Nuclear option - override everything */
+.message .quick-reply-buttons .quick-reply-button.primary {
+    all: unset !important;
+    display: inline-block !important;
+    padding: 8px 16px !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 20px !important;
+    background: #f3f4f6 !important;
+    background-color: #f3f4f6 !important;
+    background-image: none !important;
+    color: #374151 !important;
+    font-size: 14px !important;
+    font-weight: 500 !important;
+    cursor: pointer !important;
+    transition: all 0.2s ease !important;
+    white-space: nowrap !important;
+    max-width: 200px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    box-sizing: border-box !important;
+    font-family: inherit !important;
+    text-transform: none !important;
+    line-height: 1.5 !important;
+    margin: 0 !important;
+}
+
+/* Force override for any button with primary class */
+.message .quick-reply-buttons button[class*="primary"] {
+    background: #f3f4f6 !important;
+    background-color: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+/* Override any global button styles that might be applied */
+.message .quick-reply-buttons button.quick-reply-button {
+    background: #f3f4f6 !important;
+    background-color: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+
 
 .quick-reply-button.secondary {
-    background: #f3f4f6;
-    color: #374151;
-    border-color: #d1d5db;
+    background: #6b7280;
+    background-color: #6b7280;
+    color: #ffffff;
+    border-color: #6b7280;
 }
 
 .quick-reply-button.secondary:hover {
-    background: #e5e7eb;
-    border-color: #9ca3af;
+    background: #4b5563;
+    background-color: #4b5563;
+    border-color: #4b5563;
+}
+
+/* Override any button with primary class to look like secondary */
+
+/* Force override for any button with primary class */
+.quick-reply-button.primary {
+    background: #6b7280 !important;
+    background-color: #6b7280 !important;
+    color: #ffffff !important;
+    border-color: #6b7280 !important;
+}
+
+/* Override any global button styles */
+button.quick-reply-button {
+    background: #6b7280 !important;
+    background-color: #6b7280 !important;
+    color: #ffffff !important;
+    border-color: #6b7280 !important;
 }
 
 .quick-reply-button.danger {

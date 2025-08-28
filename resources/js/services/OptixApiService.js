@@ -221,6 +221,7 @@ class OptixApiService {
                 workflowAvailableSteps {
                     ... on WorkflowTrigger {
                         trigger_type
+                        variables
                     }
                 }
             }
@@ -239,6 +240,48 @@ class OptixApiService {
                     ... on WorkflowTrigger {
                         trigger_type
                         variables
+                    }
+                }
+            }
+        `;
+
+        return await this.graphqlRequest(query);
+    }
+
+    /**
+     * Get available workflow action types from enum
+     */
+    async getWorkflowActionTypes() {
+        const query = `
+            query WorkflowActionEnumValues {
+                __type(name: "WorkflowActionType") {
+                    enumValues { 
+                        name 
+                        description 
+                    }
+                }
+            }
+        `;
+
+        return await this.graphqlRequest(query);
+    }
+
+    /**
+     * Get available workflow steps by type
+     */
+    async getWorkflowAvailableSteps(stepType = null) {
+        const query = `
+            query GetWorkflowAvailableSteps {
+                workflowAvailableSteps {
+                    ... on WorkflowTrigger {
+                        trigger_type
+                        variables
+                    }
+                    ... on WorkflowAction {
+                        action_type
+                    }
+                    ... on WorkflowCondition {
+                        condition_operation
                     }
                 }
             }
