@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Status Messages Test</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-container {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .test-button {
+            background: #000;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 0;
+        }
+        .test-button:hover {
+            background: #333;
+        }
+        .message {
+            margin: 20px 0;
+            padding: 16px;
+            border-radius: 12px;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+        }
+        .status-history {
+            margin-top: 8px;
+        }
+        .status-item {
+            color: #6b7280;
+            font-size: 14px;
+            font-weight: 400;
+            cursor: pointer;
+            transition: color 0.2s ease;
+            margin-bottom: 4px;
+        }
+        .status-item:hover {
+            color: #374151;
+            text-decoration: underline;
+        }
+
+        .tooltip {
+            position: fixed;
+            background: #ffffff;
+            border: 1px solid #d1d5db;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            z-index: 1000;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            pointer-events: auto;
+            min-width: 300px;
+            max-width: 500px;
+            min-height: 200px;
+            max-height: 400px;
+        }
+        .tooltip-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid #e5e7eb;
+            background: #f3f4f6;
+        }
+        .tooltip-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1f2937;
+        }
+        .tooltip-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #6b7280;
+            transition: color 0.2s ease;
+        }
+        .tooltip-close:hover {
+            color: #374151;
+        }
+        .tooltip-content {
+            padding: 16px;
+            overflow-y: auto;
+            max-height: 300px;
+        }
+        .tooltip-data {
+            white-space: pre-wrap;
+            word-break: break-word;
+            font-size: 13px;
+            color: #374151;
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 8px;
+            border: 1px solid #e5e7eb;
+            line-height: 1.5;
+            font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>Status Messages Test</h1>
+        <p>This page tests the persistent status messages functionality.</p>
+        
+        <button class="test-button" onclick="simulateStatusMessages()">
+            Simulate Status Messages
+        </button>
+        
+        <div id="messageContainer"></div>
+    </div>
+
+    <script>
+        let currentTooltip = null;
+
+        function simulateStatusMessages() {
+            const container = document.getElementById('messageContainer');
+            
+            // Create a mock message with status history
+            const message = {
+                role: 'assistant',
+                content: 'I\'ve retrieved the available triggers and variables for your automation.',
+                statusHistory: [
+                    {
+                        originalText: 'Getting list of triggers...',
+                        displayText: 'Fetched list of triggers',
+                        data: {
+                            triggers: [
+                                { id: 'user_joined', name: 'User Joined Organization', description: 'Triggered when a new user joins the organization' },
+                                { id: 'access_requested', name: 'Access Requested', description: 'Triggered when someone requests access to a resource' },
+                                { id: 'booking_created', name: 'Booking Created', description: 'Triggered when a new booking is created' }
+                            ],
+                            success: true
+                        },
+                        timestamp: new Date()
+                    },
+                    {
+                        originalText: 'Getting available variables...',
+                        displayText: 'Fetched available variables',
+                        data: {
+                            variables: [
+                                { trigger_type: 'user_joined', variables: ['user_id', 'organization_id', 'join_date'] },
+                                { trigger_type: 'access_requested', variables: ['request_id', 'user_id', 'resource_id'] },
+                                { trigger_type: 'booking_created', variables: ['booking_id', 'user_id', 'start_time', 'end_time'] }
+                            ],
+                            success: true
+                        },
+                        timestamp: new Date()
+                    }
+                ]
+            };
+            
+            displayMessage(message);
+        }
+
+        function displayMessage(message) {
+            const container = document.getElementById('messageContainer');
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            
+            messageDiv.innerHTML = `
+                <div class="message-content">
+                    <div class="message-text">${message.content}</div>
+                    
+                    ${message.statusHistory && message.statusHistory.length > 0 ? `
+                        <div class="status-history">
+                            ${message.statusHistory.map((status, index) => `
+                                <div class="status-item" onclick="showTooltip('${index}', event)">
+                                    ${status.displayText}
+                                </div>
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+            
+            container.appendChild(messageDiv);
+        }
+
+        function showTooltip(statusIndex, event) {
+            // Remove existing tooltip
+            if (currentTooltip) {
+                document.body.removeChild(currentTooltip);
+            }
+            
+            const status = document.querySelectorAll('.status-item')[statusIndex];
+            const statusData = getStatusData(statusIndex);
+            
+            const rect = status.getBoundingClientRect();
+            const tooltipX = rect.left;
+            const tooltipY = rect.bottom + 8;
+            
+            // Adjust position if tooltip would go off screen
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const tooltipWidth = 400;
+            const tooltipHeight = 300;
+            
+            let finalX = tooltipX;
+            let finalY = tooltipY;
+            
+            if (finalX + tooltipWidth > viewportWidth - 20) {
+                finalX = viewportWidth - tooltipWidth - 20;
+            }
+            
+            if (finalY + tooltipHeight > viewportHeight - 20) {
+                finalY = rect.top - tooltipHeight - 8;
+            }
+            
+            const tooltip = document.createElement('div');
+            tooltip.className = 'tooltip';
+            tooltip.style.left = finalX + 'px';
+            tooltip.style.top = finalY + 'px';
+            tooltip.style.width = tooltipWidth + 'px';
+            tooltip.style.height = tooltipHeight + 'px';
+            
+            tooltip.innerHTML = `
+                <div class="tooltip-header">
+                    <span class="tooltip-title">${statusData.displayText}</span>
+                    <button class="tooltip-close" onclick="hideTooltip()">×</button>
+                </div>
+                <div class="tooltip-content">
+                    <pre class="tooltip-data">${JSON.stringify(statusData.data, null, 2)}</pre>
+                </div>
+            `;
+            
+            document.body.appendChild(tooltip);
+            currentTooltip = tooltip;
+            
+            // Add click outside handler
+            setTimeout(() => {
+                document.addEventListener('click', handleClickOutside);
+            }, 100);
+        }
+
+        function hideTooltip() {
+            if (currentTooltip) {
+                document.body.removeChild(currentTooltip);
+                currentTooltip = null;
+            }
+            document.removeEventListener('click', handleClickOutside);
+        }
+
+        function handleClickOutside(event) {
+            if (currentTooltip && !currentTooltip.contains(event.target)) {
+                hideTooltip();
+            }
+        }
+
+        function getStatusData(index) {
+            const statusData = [
+                {
+                    displayText: 'Fetched list of triggers',
+                    data: {
+                        triggers: [
+                            { id: 'user_joined', name: 'User Joined Organization', description: 'Triggered when a new user joins the organization' },
+                            { id: 'access_requested', name: 'Access Requested', description: 'Triggered when someone requests access to a resource' },
+                            { id: 'booking_created', name: 'Booking Created', description: 'Triggered when a new booking is created' }
+                        ],
+                        success: true
+                    }
+                },
+                {
+                    displayText: 'Fetched available variables',
+                    data: {
+                        variables: [
+                            { trigger_type: 'user_joined', variables: ['user_id', 'organization_id', 'join_date'] },
+                            { trigger_type: 'access_requested', variables: ['request_id', 'user_id', 'resource_id'] },
+                            { trigger_type: 'booking_created', variables: ['booking_id', 'user_id', 'start_time', 'end_time'] }
+                        ],
+                        success: true
+                    }
+                }
+            ];
+            
+            return statusData[index] || { displayText: 'Unknown', data: {} };
+        }
+    </script>
+</body>
+</html>

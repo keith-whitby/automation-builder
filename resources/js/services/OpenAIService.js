@@ -45,10 +45,11 @@ class OpenAIService {
     /**
      * Update status message
      * @param {string} status - Status message to display
+     * @param {Object} data - Optional data associated with the status
      */
-    updateStatus(status) {
+    updateStatus(status, data = null) {
         if (this.statusCallback) {
-            this.statusCallback(status);
+            this.statusCallback(status, data);
         }
     }
 
@@ -573,11 +574,36 @@ class OpenAIService {
         try {
             const result = await functionToExecute(functionArgs);
             console.log(`Function ${functionName} executed successfully:`, result);
+            
+            // Update status with completion and pass the result data
+            const completionStatus = this.getCompletionStatus(functionName);
+            this.updateStatus(completionStatus, result);
+            
             return result;
         } catch (error) {
             console.error(`Error executing function ${functionName}:`, error);
             throw error;
         }
+    }
+
+    /**
+     * Get completion status message for a function
+     * @param {string} functionName - Name of the function
+     * @returns {string} Completion status message
+     */
+    getCompletionStatus(functionName) {
+        const completionMessages = {
+            'get_available_triggers': 'Fetched list of triggers',
+            'get_available_variables': 'Fetched available variables',
+            'get_conditions_for_trigger': 'Fetched conditions for trigger',
+            'get_available_actions': 'Fetched available actions',
+            'get_available_workflow_steps': 'Fetched workflow steps',
+            'get_reference_data': 'Fetched reference data',
+            'validate_automation_data': 'Validated automation data',
+            'commit_workflow': 'Committed workflow'
+        };
+        
+        return completionMessages[functionName] || `Completed ${functionName}`;
     }
 
     /**

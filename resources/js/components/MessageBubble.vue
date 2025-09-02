@@ -9,8 +9,12 @@
                 <div v-else-if="isAssistantMessage && showTypingEffect" class="message-text typing-effect" v-html="displayedContent"></div>
                 <div v-else class="message-text" v-html="formatMessage(message.content)"></div>
                 
+
+                
+
+                
                 <!-- Quick Reply Buttons -->
-                <div v-if="isAssistantMessage && message.ui_suggestions && message.ui_suggestions.length > 0" class="quick-replies">
+                <div v-if="shouldShowQuickReplies" class="quick-replies">
                     <div class="quick-reply-buttons">
                         <button
                             v-for="(suggestion, index) in message.ui_suggestions"
@@ -45,6 +49,10 @@ export default {
         statusMessage: {
             type: String,
             default: ''
+        },
+        hideButtons: {
+            type: Boolean,
+            default: false
         }
     },
     data() {
@@ -53,7 +61,7 @@ export default {
             showTypingEffect: false,
             typingSpeed: 15, // milliseconds per character - much faster
             currentIndex: 0,
-            fullText: ''
+            fullText: '',
         };
     },
     computed: {
@@ -69,18 +77,29 @@ export default {
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
                 .replace(/`(.*?)`/g, '<code>$1</code>')
                 .replace(/\n/g, '<br>');
-        }
+        },
+        shouldShowQuickReplies() {
+            return this.isAssistantMessage && 
+                   this.message.ui_suggestions && 
+                   this.message.ui_suggestions.length > 0 &&
+                   !this.hideButtons;
+        },
+        
     },
     mounted() {
         this.$nextTick(() => {
             this.forceSecondaryClass();
             this.startContinuousFix();
         });
+        
+
     },
     beforeDestroy() {
         if (this.fixInterval) {
             clearInterval(this.fixInterval);
         }
+        
+
     },
     watch: {
         message: {
@@ -137,6 +156,7 @@ export default {
             }
         },
         handleQuickReply(suggestion) {
+            console.log('MessageBubble: Emitting quick-reply event:', suggestion);
             // Emit event to parent component
             this.$emit('quick-reply', suggestion);
         },
@@ -170,7 +190,8 @@ export default {
                     button.style.removeProperty('background-size');
                 });
             }, 25); // Check every 25ms for even faster response
-        }
+        },
+        
 
     }
 };
@@ -531,6 +552,12 @@ export default {
     border-color: #d1d5db !important;
 }
 
+.message .quick-reply-buttons button.quick-reply-button:hover {
+    background: #e5e7eb !important;
+    background-color: #e5e7eb !important;
+    border-color: #9ca3af !important;
+}
+
 
 
 .quick-reply-button.secondary {
@@ -550,18 +577,30 @@ export default {
 
 /* Force override for any button with primary class */
 .quick-reply-button.primary {
-    background: #6b7280 !important;
-    background-color: #6b7280 !important;
-    color: #ffffff !important;
-    border-color: #6b7280 !important;
+    background: #f3f4f6 !important;
+    background-color: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+.quick-reply-button.primary:hover {
+    background: #e5e7eb !important;
+    background-color: #e5e7eb !important;
+    border-color: #9ca3af !important;
 }
 
 /* Override any global button styles */
 button.quick-reply-button {
-    background: #6b7280 !important;
-    background-color: #6b7280 !important;
-    color: #ffffff !important;
-    border-color: #6b7280 !important;
+    background: #f3f4f6 !important;
+    background-color: #f3f4f6 !important;
+    color: #374151 !important;
+    border-color: #d1d5db !important;
+}
+
+button.quick-reply-button:hover {
+    background: #e5e7eb !important;
+    background-color: #e5e7eb !important;
+    border-color: #9ca3af !important;
 }
 
 .quick-reply-button.danger {
@@ -574,6 +613,12 @@ button.quick-reply-button {
     background: #dc2626;
     border-color: #dc2626;
 }
+
+
+
+
+
+
 
 /* Responsive design */
 @media (max-width: 768px) {

@@ -30,8 +30,10 @@
                 <MessageBubble 
                     :message="message"
                     :is-typing="false"
-                    @quick-reply="handleQuickReply"
+                    :hide-buttons="clickedMessageIds.includes(message.id || index)"
+                    @quick-reply="(suggestion) => handleQuickReply(suggestion, message.id || index)"
                 />
+
             </div>
 
             <!-- Typing Indicator -->
@@ -97,7 +99,8 @@ export default {
     },
     data() {
         return {
-            userInput: ''
+            userInput: '',
+            clickedMessageIds: []
         };
     },
     watch: {
@@ -137,8 +140,12 @@ export default {
             }
         },
 
-        handleQuickReply(suggestion) {
-            console.log('Quick reply clicked:', suggestion);
+        handleQuickReply(suggestion, messageId) {
+            // Track that this message's buttons have been clicked
+            if (!this.clickedMessageIds.includes(messageId)) {
+                // Force Vue reactivity by creating a new array reference
+                this.clickedMessageIds = [...this.clickedMessageIds, messageId];
+            }
             
             if (suggestion.tool_call) {
                 // Handle tool call
