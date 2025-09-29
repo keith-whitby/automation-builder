@@ -27,23 +27,13 @@ import Vue from "vue";
 
 Vue.config.productionTip = false;
 
-import OptixUIPlugin from "optixapp-ui-kit/src/vue-plugin";
-import "optixapp-ui-kit/src/vue-base.css";
-import "optixapp-ui-kit/src/icons";
+// Removed optixapp-ui-kit dependency for Vercel deployment
 import Vuetify from "vuetify/lib";
 
 // All vue components from "components" folder
 import "./components/index";
 
-// Initialize Optix UI Plugin with error handling
-try {
-    Vue.use(OptixUIPlugin, {
-        themed: true, // Create stylesheets and support theming functions
-    });
-    console.log('Optix UI Plugin initialized successfully');
-} catch (error) {
-    console.warn('Optix UI Plugin initialization failed:', error);
-}
+// Optix UI Plugin removed for Vercel deployment
 
 Vue.use(Vuetify);
 
