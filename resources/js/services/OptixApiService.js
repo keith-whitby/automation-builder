@@ -6,9 +6,57 @@ import authService from './AuthService.js';
 
 class OptixApiService {
     constructor() {
-        this.baseUrl = window.optix_env?.conf?.optix_v2_url || 'https://api.optixapp.com';
-        this.graphqlEndpoint = `${this.baseUrl}/graphql`;
+        // Check if we're in an iframe with staging.optixdev.com in the URL
+        const isStagingIframe = this.isStagingIframe();
+        
+        if (isStagingIframe) {
+            this.baseUrl = 'https://api.catalufa.net';
+            this.graphqlEndpoint = `${this.baseUrl}/graphql`;
+            console.log('OptixApiService: Using staging API endpoint:', this.graphqlEndpoint);
+        } else {
+            this.baseUrl = window.optix_env?.conf?.optix_v2_url || 'https://api.optixapp.com';
+            this.graphqlEndpoint = `${this.baseUrl}/graphql`;
+            console.log('OptixApiService: Using production API endpoint:', this.graphqlEndpoint);
+        }
         this.token = null;
+    }
+
+    /**
+     * Check if the app is loaded in an iframe with staging.optixdev.com in the URL
+     */
+    isStagingIframe() {
+        try {
+            // Check if we're in an iframe
+            const inIframe = window !== window.top;
+            
+            // Check if the current URL contains staging.optixdev.com
+            const hasStagingUrl = window.location.href.includes('staging.optixdev.com');
+            
+            // Check if parent URL contains staging.optixdev.com (for cross-origin scenarios)
+            let parentHasStagingUrl = false;
+            try {
+                if (window.parent && window.parent !== window) {
+                    parentHasStagingUrl = window.parent.location.href.includes('staging.optixdev.com');
+                }
+            } catch (error) {
+                // Cross-origin access blocked, which is expected
+                console.log('OptixApiService: Cannot access parent URL (cross-origin):', error.message);
+            }
+            
+            const isStaging = inIframe && (hasStagingUrl || parentHasStagingUrl);
+            console.log('OptixApiService: Staging detection:', {
+                inIframe,
+                hasStagingUrl,
+                parentHasStagingUrl,
+                isStaging,
+                currentUrl: window.location.href
+            });
+            
+            return isStaging;
+        } catch (error) {
+            console.warn('OptixApiService: Error detecting staging iframe:', error);
+            return false;
+        }
     }
 
     /**

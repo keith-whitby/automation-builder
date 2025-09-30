@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staging API Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .success { border-color: #4CAF50; background-color: #f1f8e9; }
+        .warning { border-color: #ff9800; background-color: #fff3e0; }
+        .error { border-color: #f44336; background-color: #ffebee; }
+        button {
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #1976D2;
+        }
+        pre {
+            background-color: #f5f5f5;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .url-input {
+            width: 100%;
+            padding: 8px;
+            margin: 5px 0;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Staging API Detection Test</h1>
+        <p>This page tests the staging URL detection logic in OptixApiService.</p>
+        
+        <div class="test-section">
+            <h3>Current Environment</h3>
+            <div id="environment-info"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>URL Test</h3>
+            <p>Test different URLs to see which API endpoint would be used:</p>
+            <input type="text" class="url-input" id="test-url" placeholder="Enter URL to test (e.g., https://staging.optixdev.com/test)" value="https://staging.optixdev.com/test">
+            <button onclick="testUrl()">Test URL</button>
+            <div id="url-test-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Iframe Simulation</h3>
+            <button onclick="simulateIframe()">Simulate Staging Iframe</button>
+            <button onclick="simulateProductionIframe()">Simulate Production Iframe</button>
+            <button onclick="simulateDirectAccess()">Simulate Direct Access</button>
+            <div id="simulation-result"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>Real OptixApiService Test</h3>
+            <button onclick="testRealService()">Test Real OptixApiService</button>
+            <div id="real-service-result"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Import the actual OptixApiService
+        import OptixApiService from '/resources/js/services/OptixApiService.js';
+
+        // Display current environment info
+        function displayEnvironmentInfo() {
+            const envInfo = {
+                currentUrl: window.location.href,
+                isInIframe: window !== window.top,
+                userAgent: navigator.userAgent,
+                optixEnv: window.optix_env || 'Not available'
+            };
+
+            document.getElementById('environment-info').innerHTML = `
+                <pre>${JSON.stringify(envInfo, null, 2)}</pre>
+            `;
+        }
+
+        // Test URL detection logic
+        function testUrl() {
+            const testUrl = document.getElementById('test-url').value;
+            
+            // Create a mock window.location for testing
+            const originalHref = window.location.href;
+            
+            // Mock the location for testing
+            Object.defineProperty(window, 'location', {
+                value: { href: testUrl },
+                writable: true
+            });
+
+            // Create a temporary OptixApiService instance
+            const tempService = new OptixApiService();
+            
+            // Restore original location
+            Object.defineProperty(window, 'location', {
+                value: { href: originalHref },
+                writable: true
+            });
+
+            const result = {
+                testUrl: testUrl,
+                detectedAsStaging: tempService.isStagingIframe(),
+                apiEndpoint: tempService.graphqlEndpoint,
+                baseUrl: tempService.baseUrl
+            };
+
+            document.getElementById('url-test-result').innerHTML = `
+                <div class="${result.detectedAsStaging ? 'success' : 'warning'}">
+                    <h4>Test Result:</h4>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        // Simulate different iframe scenarios
+        function simulateIframe() {
+            // Mock iframe environment with staging URL
+            const originalTop = window.top;
+            const originalParent = window.parent;
+            
+            Object.defineProperty(window, 'top', {
+                value: { location: { href: 'https://staging.optixdev.com/parent' } },
+                writable: true
+            });
+            
+            Object.defineProperty(window, 'parent', {
+                value: { location: { href: 'https://staging.optixdev.com/parent' } },
+                writable: true
+            });
+
+            const service = new OptixApiService();
+            const result = {
+                scenario: 'Staging Iframe Simulation',
+                detectedAsStaging: service.isStagingIframe(),
+                apiEndpoint: service.graphqlEndpoint,
+                baseUrl: service.baseUrl
+            };
+
+            // Restore original values
+            Object.defineProperty(window, 'top', { value: originalTop, writable: true });
+            Object.defineProperty(window, 'parent', { value: originalParent, writable: true });
+
+            displaySimulationResult(result);
+        }
+
+        function simulateProductionIframe() {
+            // Mock iframe environment with production URL
+            const originalTop = window.top;
+            const originalParent = window.parent;
+            
+            Object.defineProperty(window, 'top', {
+                value: { location: { href: 'https://app.optixapp.com/parent' } },
+                writable: true
+            });
+            
+            Object.defineProperty(window, 'parent', {
+                value: { location: { href: 'https://app.optixapp.com/parent' } },
+                writable: true
+            });
+
+            const service = new OptixApiService();
+            const result = {
+                scenario: 'Production Iframe Simulation',
+                detectedAsStaging: service.isStagingIframe(),
+                apiEndpoint: service.graphqlEndpoint,
+                baseUrl: service.baseUrl
+            };
+
+            // Restore original values
+            Object.defineProperty(window, 'top', { value: originalTop, writable: true });
+            Object.defineProperty(window, 'parent', { value: originalParent, writable: true });
+
+            displaySimulationResult(result);
+        }
+
+        function simulateDirectAccess() {
+            // Mock direct access (not in iframe)
+            const originalTop = window.top;
+            
+            Object.defineProperty(window, 'top', {
+                value: window,
+                writable: true
+            });
+
+            const service = new OptixApiService();
+            const result = {
+                scenario: 'Direct Access Simulation',
+                detectedAsStaging: service.isStagingIframe(),
+                apiEndpoint: service.graphqlEndpoint,
+                baseUrl: service.baseUrl
+            };
+
+            // Restore original values
+            Object.defineProperty(window, 'top', { value: originalTop, writable: true });
+
+            displaySimulationResult(result);
+        }
+
+        function displaySimulationResult(result) {
+            document.getElementById('simulation-result').innerHTML = `
+                <div class="${result.detectedAsStaging ? 'success' : 'warning'}">
+                    <h4>${result.scenario}:</h4>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        // Test the real service
+        function testRealService() {
+            try {
+                const service = new OptixApiService();
+                const result = {
+                    realServiceTest: 'Success',
+                    detectedAsStaging: service.isStagingIframe(),
+                    apiEndpoint: service.graphqlEndpoint,
+                    baseUrl: service.baseUrl,
+                    currentUrl: window.location.href,
+                    isInIframe: window !== window.top
+                };
+
+                document.getElementById('real-service-result').innerHTML = `
+                    <div class="success">
+                        <h4>Real Service Test:</h4>
+                        <pre>${JSON.stringify(result, null, 2)}</pre>
+                    </div>
+                `;
+            } catch (error) {
+                document.getElementById('real-service-result').innerHTML = `
+                    <div class="error">
+                        <h4>Real Service Test Failed:</h4>
+                        <pre>${error.message}</pre>
+                    </div>
+                `;
+            }
+        }
+
+        // Make functions globally available
+        window.testUrl = testUrl;
+        window.simulateIframe = simulateIframe;
+        window.simulateProductionIframe = simulateProductionIframe;
+        window.simulateDirectAccess = simulateDirectAccess;
+        window.testRealService = testRealService;
+
+        // Initialize page
+        displayEnvironmentInfo();
+    </script>
+</body>
+</html>
