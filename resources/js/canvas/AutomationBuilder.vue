@@ -1,57 +1,36 @@
 <template>
     <div class="automation-builder">
-        <div class="chat-container">
-            <div class="messages-container" ref="messagesContainer">
-                <div 
-                    v-for="(message, index) in messages" 
-                    :key="index"
-                    class="message-wrapper"
-                >
-                    <MessageBubble 
-                        :message="message"
-                        :is-user="message.role === 'user'"
-                        :is-assistant="message.role === 'assistant'"
-                        :show-typing="message.showTyping"
-                        :typing-text="message.typingText"
-                    />
-                </div>
-                
-                <!-- Status messages -->
-                <div v-if="statusMessage" class="status-message">
-                    {{ statusMessage }}
-                </div>
-                
-                <!-- Status history for current message -->
-                <div v-if="currentStatusHistory.length > 0" class="status-history">
-                    <div 
-                        v-for="(status, index) in currentStatusHistory" 
-                        :key="index"
-                        class="status-item"
-                    >
-                        {{ status.displayText }}
-                    </div>
-                </div>
+        <div class="main-container">
+            <!-- Chat Interface -->
+            <div class="chat-section">
+                <ChatInterface
+                    :messages="messages"
+                    :is-typing="isLoading"
+                    :status-message="statusMessage"
+                    @send-message="handleSendMessage"
+                    @tool-call="handleToolCall"
+                />
             </div>
             
-            <div class="input-container">
-                <div class="input-wrapper">
-                    <textarea
-                        v-model="currentMessage"
-                        @keydown.enter.prevent="handleEnterKey"
-                        @keyup.enter="sendMessage"
-                        placeholder="Describe the automation you want to create..."
-                        :disabled="isLoading"
-                        class="message-input"
-                        rows="3"
-                    ></textarea>
-                    <button 
-                        @click="sendMessage" 
-                        :disabled="isLoading || !currentMessage.trim()"
-                        class="send-button"
-                    >
-                        <span v-if="!isLoading">Send</span>
-                        <span v-else>Sending...</span>
-                    </button>
+            <!-- Automation Preview Panel (if needed) -->
+            <div v-if="showPreview" class="preview-section">
+                <AutomationPreview
+                    :automation-data="currentAutomation"
+                    :current-step="currentStep"
+                    @start-again="handleStartAgain"
+                />
+            </div>
+        </div>
+        
+        <!-- Status History for Current Message -->
+        <div v-if="currentStatusHistory.length > 0" class="status-history-overlay">
+            <div class="status-history">
+                <div 
+                    v-for="(status, index) in currentStatusHistory" 
+                    :key="index"
+                    class="status-item"
+                >
+                    {{ status.displayText }}
                 </div>
             </div>
         </div>
@@ -59,22 +38,26 @@
 </template>
 
 <script>
-import MessageBubble from '../components/MessageBubble.vue';
+import ChatInterface from '../components/ChatInterface.vue';
+import AutomationPreview from '../components/AutomationPreview.vue';
 import openAIService from '../services/OpenAIService.js';
 import optixApiService from '../services/OptixApiService.js';
 
 export default {
     name: 'AutomationBuilder',
     components: {
-        MessageBubble
+        ChatInterface,
+        AutomationPreview
     },
     data() {
         return {
             messages: [],
-            currentMessage: '',
             isLoading: false,
             statusMessage: '',
-            currentStatusHistory: []
+            currentStatusHistory: [],
+            showPreview: false,
+            currentAutomation: null,
+            currentStep: null
         };
     },
     async mounted() {
@@ -152,7 +135,7 @@ export default {
                 // Initialize OpenAI service
                 if (!openAIService.apiKey) {
                     try {
-                        const apiKey = process.env.OPENAI_API_KEY || window.OPENAI_API_KEY;
+                        const apiKey = window.OPENAI_API_KEY || process.env.VUE_APP_OPENAI_API_KEY;
                         if (!apiKey) {
                             console.warn('OpenAI API key not found. OpenAI features will be disabled.');
                             this.addMessage('assistant', 'Welcome! I\'m your automation assistant. Note: OpenAI integration is not configured, so I can only help with basic automation guidance. To enable full functionality, please configure your OpenAI API key.');
@@ -166,8 +149,7 @@ export default {
                     }
                 }
                 
-                // Add welcome message
-                this.addMessage('assistant', 'Hello! I\'m your automation assistant. I can help you create complex Optix automations through natural language. What would you like to automate today?');
+                // Welcome message will be handled by ChatInterface component
                 
             } catch (error) {
                 console.error('Service initialization failed:', error);
@@ -175,11 +157,8 @@ export default {
             }
         },
         
-        async sendMessage() {
-            if (!this.currentMessage.trim() || this.isLoading) return;
-            
-            const userMessage = this.currentMessage.trim();
-            this.currentMessage = '';
+        async handleSendMessage(userMessage) {
+            if (!userMessage.trim() || this.isLoading) return;
             
             // Add user message
             this.addMessage('user', userMessage);
@@ -206,6 +185,21 @@ export default {
             }
         },
         
+        async handleToolCall(toolCall) {
+            console.log('Tool call received:', toolCall);
+            // Handle tool calls from the chat interface
+            // This would typically involve calling the appropriate service method
+        },
+        
+        handleStartAgain() {
+            console.log('Starting automation over');
+            this.messages = [];
+            this.currentAutomation = null;
+            this.currentStep = null;
+            this.showPreview = false;
+            this.currentStatusHistory = [];
+        },
+        
         addMessage(role, content, showTyping = false, typingText = '') {
             const message = {
                 role,
@@ -216,26 +210,8 @@ export default {
             };
             
             this.messages.push(message);
-            this.$nextTick(() => {
-                this.scrollToBottom();
-            });
         },
         
-        handleEnterKey(event) {
-            if (event.shiftKey) {
-                // Allow new line with Shift+Enter
-                return;
-            }
-            // Enter alone sends the message
-            this.sendMessage();
-        },
-        
-        scrollToBottom() {
-            const container = this.$refs.messagesContainer;
-            if (container) {
-                container.scrollTop = container.scrollHeight;
-            }
-        },
         
         convertToPastTense(text) {
             // Convert present tense status messages to past tense for history
@@ -257,48 +233,47 @@ export default {
     flex-direction: column;
     height: 100vh;
     background-color: #f5f5f5;
+    position: relative;
 }
 
-.chat-container {
+.main-container {
     display: flex;
-    flex-direction: column;
     height: 100%;
-    max-width: 800px;
-    margin: 0 auto;
-    background: white;
-    box-shadow: 0 0 10px rgba(0,0,0,0.1);
-}
-
-.messages-container {
     flex: 1;
-    overflow-y: auto;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
 }
 
-.message-wrapper {
+.chat-section {
+    flex: 1;
     display: flex;
     flex-direction: column;
 }
 
-.status-message {
-    background-color: #e3f2fd;
-    border-left: 4px solid #2196f3;
-    padding: 12px 16px;
-    margin: 8px 0;
-    border-radius: 4px;
-    font-size: 14px;
-    color: #1976d2;
+.preview-section {
+    width: 300px;
+    border-left: 1px solid #e0e0e0;
+    background: white;
+    display: flex;
+    flex-direction: column;
+}
+
+.status-history-overlay {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    right: 20px;
+    z-index: 1000;
+    pointer-events: none;
 }
 
 .status-history {
-    background-color: #f5f5f5;
+    background-color: rgba(255, 255, 255, 0.95);
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     padding: 12px;
-    margin: 8px 0;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    max-width: 600px;
+    margin: 0 auto;
 }
 
 .status-item {
@@ -313,80 +288,23 @@ export default {
     padding-bottom: 6px;
 }
 
-.input-container {
-    border-top: 1px solid #e0e0e0;
-    padding: 20px;
-    background: white;
-}
-
-.input-wrapper {
-    display: flex;
-    gap: 12px;
-    align-items: flex-end;
-}
-
-.message-input {
-    flex: 1;
-    border: 1px solid #ddd;
-    border-radius: 8px;
-    padding: 12px;
-    font-size: 14px;
-    font-family: inherit;
-    resize: vertical;
-    min-height: 50px;
-    max-height: 120px;
-}
-
-.message-input:focus {
-    outline: none;
-    border-color: #2196f3;
-    box-shadow: 0 0 0 2px rgba(33, 150, 243, 0.2);
-}
-
-.send-button {
-    background-color: #2196f3;
-    color: white;
-    border: none;
-    border-radius: 8px;
-    padding: 12px 24px;
-    font-size: 14px;
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color 0.2s;
-    min-width: 80px;
-}
-
-.send-button:hover:not(:disabled) {
-    background-color: #1976d2;
-}
-
-.send-button:disabled {
-    background-color: #ccc;
-    cursor: not-allowed;
-}
-
 /* Responsive design */
+@media (max-width: 1024px) {
+    .preview-section {
+        display: none;
+    }
+}
+
 @media (max-width: 768px) {
-    .chat-container {
+    .automation-builder {
         margin: 0;
         height: 100vh;
     }
     
-    .messages-container {
-        padding: 16px;
-    }
-    
-    .input-container {
-        padding: 16px;
-    }
-    
-    .input-wrapper {
-        flex-direction: column;
-        gap: 8px;
-    }
-    
-    .send-button {
-        align-self: flex-end;
+    .status-history-overlay {
+        left: 16px;
+        right: 16px;
+        bottom: 16px;
     }
 }
 </style>
