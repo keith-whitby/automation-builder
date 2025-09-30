@@ -154,13 +154,15 @@ export default {
                     try {
                         const apiKey = process.env.OPENAI_API_KEY || window.OPENAI_API_KEY;
                         if (!apiKey) {
-                            throw new Error('OpenAI API key not found. Please set OPENAI_API_KEY environment variable.');
+                            console.warn('OpenAI API key not found. OpenAI features will be disabled.');
+                            this.addMessage('assistant', 'Welcome! I\'m your automation assistant. Note: OpenAI integration is not configured, so I can only help with basic automation guidance. To enable full functionality, please configure your OpenAI API key.');
+                        } else {
+                            openAIService.initialize(apiKey);
+                            console.log('OpenAIService initialized successfully');
                         }
-                        openAIService.initialize(apiKey);
-                        console.log('OpenAIService initialized successfully');
                     } catch (error) {
                         console.error('Failed to initialize OpenAI service:', error);
-                        this.addMessage('assistant', 'OpenAI service initialization failed. Please check your API key configuration.');
+                        this.addMessage('assistant', 'OpenAI service initialization failed. I\'ll continue with basic functionality.');
                     }
                 }
                 
@@ -189,8 +191,12 @@ export default {
             this.statusMessage = 'Processing your request...';
             
             try {
-                const response = await openAIService.sendMessage(userMessage);
-                this.addMessage('assistant', response);
+                if (!openAIService.apiKey) {
+                    this.addMessage('assistant', 'I understand you want to: "' + userMessage + '". However, I need OpenAI integration to provide full automation assistance. Please configure your OPENAI_API_KEY environment variable to enable AI-powered automation building.');
+                } else {
+                    const response = await openAIService.sendMessage(userMessage);
+                    this.addMessage('assistant', response);
+                }
             } catch (error) {
                 console.error('Error sending message:', error);
                 this.addMessage('assistant', `Sorry, I encountered an error: ${error.message}`);
