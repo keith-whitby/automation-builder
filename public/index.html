@@ -37,6 +37,13 @@
         // Set environment variables for the app
         window.OPENAI_API_KEY = '{{OPENAI_API_KEY}}';
         
+        // For local development, try to get from process.env or set a placeholder
+        if (window.OPENAI_API_KEY === '{{OPENAI_API_KEY}}') {
+            // This means we're in local development and the placeholder wasn't replaced
+            // You can set your API key here for local development:
+            window.OPENAI_API_KEY = 'your-openai-api-key-here'; // Replace with your actual API key
+        }
+        
         // Initialize the app when the page loads
         document.addEventListener('DOMContentLoaded', function() {
             console.log('Main page loaded');
