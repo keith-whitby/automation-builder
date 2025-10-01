@@ -21,7 +21,9 @@
                             :key="`${suggestion.id}-${index}`"
                             @click="handleQuickReply(suggestion)"
                             class="quick-reply-button secondary"
+                            :class="{ 'has-step': suggestion.step }"
                         >
+                            <span v-if="suggestion.step" class="step-icon">+</span>
                             {{ suggestion.label }}
                         </button>
                     </div>
@@ -167,6 +169,9 @@ export default {
         },
         handleQuickReply(suggestion) {
             console.log('MessageBubble: Emitting quick-reply event:', suggestion);
+            if (suggestion.step) {
+                console.log('MessageBubble: Step action:', suggestion.step);
+            }
             // Emit event to parent component
             this.$emit('quick-reply', suggestion);
         },
@@ -622,6 +627,28 @@ button.quick-reply-button:hover {
 .quick-reply-button.danger:hover {
     background: #dc2626;
     border-color: #dc2626;
+}
+
+/* Step icon styling */
+.step-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    line-height: 14px;
+    text-align: center;
+    background: #10b981;
+    color: white;
+    border-radius: 50%;
+    font-size: 12px;
+    font-weight: bold;
+    margin-right: 6px;
+    flex-shrink: 0;
+}
+
+.quick-reply-button.has-step {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
 }
 
 
