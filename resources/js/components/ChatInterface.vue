@@ -22,6 +22,13 @@
                             </div>
                         </div>
                     </div>
+
+                    <!-- Test Button -->
+                    <div class="test-section">
+                        <button @click="setRandomName" class="test-button">
+                            🎲 Set Random Automation Name
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -154,6 +161,37 @@ export default {
                 // Send payload as user message
                 this.sendMessage(suggestion.payload);
             }
+        },
+
+        setRandomName() {
+            const randomTitles = [
+                "Fall seven times, stand up eight",
+                "Adventure awaits",
+                "Magic happens here",
+                "Dream big, achieve bigger",
+                "Today's special automation",
+                "The automation formerly known as...",
+                "Ctrl+Alt+Delight",
+                "Automation McAutomationface",
+                "This is the way",
+                "May the flows be with you",
+                "To infinity and beyond!",
+                "Never gonna give you up",
+                "Hello there, General Kenobi",
+                "One automation to rule them all",
+                "With great power comes great automation"
+            ];
+            
+            const randomTitle = randomTitles[Math.floor(Math.random() * randomTitles.length)];
+            
+            // Send message to parent window
+            const message = {
+                action: "AssistantSetName",
+                data: { name: randomTitle }
+            };
+            
+            window.parent.postMessage(message, '*');
+            console.log('Sent AssistantSetName message:', message);
         }
     }
 };
@@ -230,6 +268,28 @@ export default {
 .prompt-example:hover {
     background: #f9fafb;
     border-color: #d1d5db;
+}
+
+.test-section {
+    margin-top: 32px;
+    padding-top: 24px;
+    border-top: 1px solid #e5e5e5;
+}
+
+.test-button {
+    background: #2196F3;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: background-color 0.2s ease;
+}
+
+.test-button:hover {
+    background: #1976D2;
 }
 
 .message-wrapper {
