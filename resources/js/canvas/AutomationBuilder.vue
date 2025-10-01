@@ -135,7 +135,7 @@ export default {
                 // Initialize OpenAI service
                 if (!openAIService.apiKey) {
                     try {
-                        const apiKey = window.OPENAI_API_KEY || process.env.VUE_APP_OPENAI_API_KEY;
+                        const apiKey = window.OPENAI_API_KEY;
                         if (!apiKey) {
                             console.warn('OpenAI API key not found. OpenAI features will be disabled.');
                             this.addMessage('assistant', 'Welcome! I\'m your automation assistant. Note: OpenAI integration is not configured, so I can only help with basic automation guidance. To enable full functionality, please configure your OpenAI API key.');
