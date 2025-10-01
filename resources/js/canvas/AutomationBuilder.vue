@@ -23,7 +23,7 @@
         </div>
         
         <!-- Status History for Current Message -->
-        <div v-if="currentStatusHistory.length > 0" class="status-history-overlay">
+        <div v-if="currentStatusHistory.length > 0 && !isLoading" class="status-history-overlay">
             <div class="status-history">
                 <div 
                     v-for="(status, index) in currentStatusHistory" 
@@ -190,7 +190,12 @@ export default {
                     this.addMessage('assistant', 'I understand you want to: "' + userMessage + '". However, I need OpenAI integration to provide full automation assistance. Please configure your OPENAI_API_KEY environment variable to enable AI-powered automation building.');
                 } else {
                     const response = await openAIService.sendMessage(userMessage);
-                    this.addMessage('assistant', response);
+                    // Handle structured response from OpenAI
+                    if (typeof response === 'object' && response.display_text) {
+                        this.addMessage('assistant', response.display_text, false, '', response.ui_suggestions);
+                    } else {
+                        this.addMessage('assistant', response);
+                    }
                 }
             } catch (error) {
                 console.error('Error sending message:', error);
@@ -216,7 +221,7 @@ export default {
             this.currentStatusHistory = [];
         },
         
-        addMessage(role, content, showTyping = false, typingText = '') {
+        addMessage(role, content, showTyping = false, typingText = '', ui_suggestions = null) {
             const message = {
                 role,
                 content,
@@ -224,6 +229,11 @@ export default {
                 showTyping,
                 typingText
             };
+            
+            // Add UI suggestions if provided
+            if (ui_suggestions && Array.isArray(ui_suggestions)) {
+                message.ui_suggestions = ui_suggestions;
+            }
             
             this.messages.push(message);
         },

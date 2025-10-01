@@ -71,8 +71,13 @@ export default {
         formattedContent() {
             if (!this.message.content) return 'Processing...';
             
+            // Ensure content is a string
+            const content = typeof this.message.content === 'string' 
+                ? this.message.content 
+                : JSON.stringify(this.message.content);
+            
             // Simple markdown-like formatting
-            return this.message.content
+            return content
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
                 .replace(/`(.*?)`/g, '<code>$1</code>')
@@ -125,8 +130,13 @@ export default {
                 return '<em>Processing...</em>';
             }
             
+            // Ensure content is a string
+            const contentStr = typeof content === 'string' 
+                ? content 
+                : JSON.stringify(content);
+            
             // Simple markdown-like formatting
-            return content
+            return contentStr
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
                 .replace(/\*(.*?)\*/g, '<em>$1</em>')
                 .replace(/`(.*?)`/g, '<code>$1</code>')
