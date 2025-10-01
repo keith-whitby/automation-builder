@@ -43,13 +43,29 @@ class OptixApiService {
                 console.log('OptixApiService: Cannot access parent URL (cross-origin):', error.message);
             }
             
-            const isStaging = inIframe && (hasStagingUrl || parentHasStagingUrl);
+            // Check URL parameters for staging indicator
+            const urlParams = new URLSearchParams(window.location.search);
+            const isStagingParam = urlParams.get('staging') === 'true' || urlParams.get('env') === 'staging';
+            
+            // Check if referrer contains staging (fallback method)
+            let referrerIsStaging = false;
+            try {
+                referrerIsStaging = document.referrer.includes('staging.optixdev.com');
+            } catch (error) {
+                // Referrer access might be blocked
+            }
+            
+            const isStaging = inIframe && (hasStagingUrl || parentHasStagingUrl || isStagingParam || referrerIsStaging);
+            
             console.log('OptixApiService: Staging detection:', {
                 inIframe,
                 hasStagingUrl,
                 parentHasStagingUrl,
+                isStagingParam,
+                referrerIsStaging,
                 isStaging,
-                currentUrl: window.location.href
+                currentUrl: window.location.href,
+                referrer: document.referrer
             });
             
             return isStaging;
