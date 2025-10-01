@@ -135,8 +135,24 @@ export default {
                 // Initialize OpenAI service
                 if (!openAIService.apiKey) {
                     try {
-                        const apiKey = window.OPENAI_API_KEY;
-                        if (!apiKey) {
+                        // Try to get API key from window first
+                        let apiKey = window.OPENAI_API_KEY;
+                        
+                        // If not available, fetch from runtime endpoint
+                        if (!apiKey || apiKey === '' || apiKey === '{{OPENAI_API_KEY}}') {
+                            console.log('API key not available in window, fetching from runtime endpoint...');
+                            try {
+                                const response = await fetch('/api/config');
+                                const config = await response.json();
+                                apiKey = config.OPENAI_API_KEY;
+                                console.log('Runtime API key loaded:', apiKey ? '***SET***' : 'NOT SET');
+                            } catch (fetchError) {
+                                console.error('Failed to fetch API key from runtime endpoint:', fetchError);
+                                apiKey = null;
+                            }
+                        }
+                        
+                        if (!apiKey || apiKey === '' || apiKey === '{{OPENAI_API_KEY}}') {
                             console.warn('OpenAI API key not found. OpenAI features will be disabled.');
                             this.addMessage('assistant', 'Welcome! I\'m your automation assistant. Note: OpenAI integration is not configured, so I can only help with basic automation guidance. To enable full functionality, please configure your OpenAI API key.');
                         } else {
