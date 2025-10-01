@@ -185,13 +185,12 @@ export default {
             const randomTitle = randomTitles[Math.floor(Math.random() * randomTitles.length)];
             
             // Send message to parent window
-            const message = {
-                action: "AssistantSetName",
-                data: { name: randomTitle }
-            };
+            window.parent.postMessage({ 
+                command: "AssistantSetName", 
+                payload: { name: randomTitle } 
+            }, '*');
             
-            window.parent.postMessage(message, '*');
-            console.log('Sent AssistantSetName message:', message);
+            console.log('Sent AssistantSetName message:', { command: "AssistantSetName", payload: { name: randomTitle } });
         }
     }
 };
