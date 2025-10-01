@@ -85,6 +85,12 @@
             <button onclick="testRealService()">Test Real OptixApiService</button>
             <div id="real-service-result"></div>
         </div>
+
+        <div class="test-section">
+            <h3>PostMessage Tests</h3>
+            <button onclick="testAssistantSetRandomName()">Set Random Automation Name</button>
+            <div id="postmessage-result"></div>
+        </div>
     </div>
 
     <script type="module">
@@ -264,12 +270,53 @@
             }
         }
 
+        // PostMessage functions
+        function sendMessage(action, data = {}) {
+            const message = {
+                action: action,
+                data: data
+            };
+            window.parent.postMessage(message, '*');
+            
+            // Display what was sent
+            document.getElementById('postmessage-result').innerHTML = `
+                <div class="success">
+                    <h4>Message Sent to Parent:</h4>
+                    <pre>${JSON.stringify(message, null, 2)}</pre>
+                </div>
+            `;
+        }
+
+        function testAssistantSetRandomName() {
+            const randomTitles = [
+                "Fall seven times, stand up eight",
+                "Adventure awaits",
+                "Magic happens here",
+                "Dream big, achieve bigger",
+                "Today's special automation",
+                "The automation formerly known as...",
+                "Ctrl+Alt+Delight",
+                "Automation McAutomationface",
+                "This is the way",
+                "May the flows be with you",
+                "To infinity and beyond!",
+                "Never gonna give you up",
+                "Hello there, General Kenobi",
+                "One automation to rule them all",
+                "With great power comes great automation"
+            ];
+            
+            const randomTitle = randomTitles[Math.floor(Math.random() * randomTitles.length)];
+            sendMessage("AssistantSetName", { name: randomTitle });
+        }
+
         // Make functions globally available
         window.testUrl = testUrl;
         window.simulateIframe = simulateIframe;
         window.simulateProductionIframe = simulateProductionIframe;
         window.simulateDirectAccess = simulateDirectAccess;
         window.testRealService = testRealService;
+        window.testAssistantSetRandomName = testAssistantSetRandomName;
 
         // Initialize page
         displayEnvironmentInfo();
