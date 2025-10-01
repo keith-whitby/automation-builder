@@ -39,7 +39,7 @@
     <script>
         // Runtime environment variable loading
         // Try to get from window first (injected by env-config.js)
-        if (!window.OPENAI_API_KEY || window.OPENAI_API_KEY === '{{OPENAI_API_KEY}}') {
+        if (!window.OPENAI_API_KEY || window.OPENAI_API_KEY === '') {
             // If not available, try to fetch from a runtime endpoint
             fetch('/api/config')
                 .then(response => response.json())
