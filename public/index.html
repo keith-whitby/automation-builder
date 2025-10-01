@@ -41,17 +41,22 @@
         // Try to get from window first (injected by env-config.js)
         if (!window.OPENAI_API_KEY || window.OPENAI_API_KEY === '') {
             // If not available, try to fetch from a runtime endpoint
+            console.log('Fetching runtime config...');
             fetch('/api/config')
                 .then(response => response.json())
                 .then(config => {
                     window.OPENAI_API_KEY = config.OPENAI_API_KEY;
                     console.log('Runtime config loaded:', window.OPENAI_API_KEY ? '***SET***' : 'NOT SET');
+                    console.log('API key value:', window.OPENAI_API_KEY ? window.OPENAI_API_KEY.substring(0, 10) + '...' : 'NOT SET');
                 })
                 .catch(error => {
                     console.log('Failed to load runtime config:', error);
                     // Fallback for local development
                     window.OPENAI_API_KEY = 'your-openai-api-key-here'; // Replace with your actual API key
+                    console.log('Using fallback API key');
                 });
+        } else {
+            console.log('API key already available:', window.OPENAI_API_KEY ? '***SET***' : 'NOT SET');
         }
         
         // Initialize the app when the page loads
