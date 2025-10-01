@@ -44,26 +44,7 @@ try {
         console.log('index.html not found, skipping...');
     }
     
-    // Process env-config.js
-    const envConfigPath = path.join(__dirname, '../public/env-config.js');
-    if (fs.existsSync(envConfigPath)) {
-        let envConfigContent = fs.readFileSync(envConfigPath, 'utf8');
-        
-        Object.keys(envVars).forEach(placeholder => {
-            const originalContent = envConfigContent;
-            envConfigContent = envConfigContent.replace(new RegExp(placeholder, 'g'), envVars[placeholder]);
-            if (envConfigContent !== originalContent) {
-                console.log(`Replaced ${placeholder} in env-config.js with:`, envVars[placeholder] ? '***SET***' : 'NOT SET');
-            } else {
-                console.log(`No instances of ${placeholder} found in env-config.js to replace`);
-            }
-        });
-        
-        fs.writeFileSync(envConfigPath, envConfigContent, 'utf8');
-        console.log('env-config.js updated successfully');
-    } else {
-        console.log('env-config.js not found, skipping...');
-    }
+    // Note: env-config.js is now handled by the runtime API endpoint
     
     console.log('Environment variables injected successfully');
     
