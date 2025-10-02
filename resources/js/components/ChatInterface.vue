@@ -31,6 +31,9 @@
                         <button @click="testOpenStep" class="test-button">
                             📝 Test Open Step
                         </button>
+                        <button @click="testSetSteps" class="test-button">
+                            ⚙️ Test Set Steps
+                        </button>
                     </div>
                 </div>
             </div>
@@ -204,6 +207,79 @@ export default {
             }, '*');
             
             console.log('Sent AssistantOpenAutomationStep message:', { command: "AssistantOpenAutomationStep", payload: { position: 2 } });
+        },
+
+        createUUID() {
+            return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+                const r = Math.random() * 16 | 0;
+                const v = c == 'x' ? r : (r & 0x3 | 0x8);
+                return v.toString(16);
+            });
+        },
+
+        testSetSteps() {
+            const steps = [
+                {
+                    workflow_step_id: "UI_" + this.createUUID(),
+                    ui_new: true,
+                    __typename: "WorkflowTrigger",
+                    trigger_type: "INVOICE_DUE",
+                    variables: [],
+                    default_condition: null
+                },
+                {
+                    workflow_step_id: "UI_" + this.createUUID(),
+                    ui_new: true,
+                    delay_for: { value: "3", unit: "DAY" }
+                },
+                {
+                    workflow_step_id: "UI_" + this.createUUID(),
+                    ui_new: true,
+                    condition_operation: "IN",
+                    condition_parameters: [
+                        {
+                            value: null,
+                            property_id: null,
+                            variable: "INVOICE_STATUS"
+                        },
+                        { value: "Due" },
+                        { value: "Overdue" }
+                    ]
+                },
+                {
+                    workflow_step_id: "UI_" + this.createUUID(),
+                    ui_new: true,
+                    action_type: "SEND_MESSAGE",
+                    send_message: {
+                        message: "<p>Where's the money, Lebowski?</p>",
+                        from_admin_user_id: null,
+                        target_admin_user_id: null,
+                        target_group_conversation_id: null,
+                        target_team_admins: true
+                    }
+                },
+                {
+                    workflow_step_id: "UI_" + this.createUUID(),
+                    ui_new: true,
+                    action_type: "CREATE_TASK",
+                    create_task: {
+                        name: "<p>Sample task title</p>",
+                        description: "<p>Sample task description</p>",
+                        assignee_user_id: null,
+                        set_assignee_primary_location_admin: true,
+                        set_no_due_timestamp: false,
+                        to_due: { value: 0, unit: "DAY" }
+                    }
+                }
+            ];
+
+            // Send message to parent window
+            window.parent.postMessage({ 
+                command: "AssistantSetAutomationSteps", 
+                payload: { steps } 
+            }, '*');
+            
+            console.log('Sent AssistantSetAutomationSteps message:', { command: "AssistantSetAutomationSteps", payload: { steps } });
         }
     }
 };
