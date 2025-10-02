@@ -21,9 +21,9 @@
                             :key="`${suggestion.id}-${index}`"
                             @click="handleQuickReply(suggestion)"
                             class="quick-reply-button secondary"
-                            :class="{ 'has-step': suggestion.step || isStepModifyingInstruction(suggestion.payload) }"
+                            :class="{ 'has-step': suggestion.step || isStepModifyingInstruction(suggestion.payload, suggestion.label) }"
                         >
-                            <span v-if="suggestion.step || isStepModifyingInstruction(suggestion.payload)" class="step-icon">⚙️</span>
+                            <span v-if="suggestion.step || isStepModifyingInstruction(suggestion.payload, suggestion.label)" class="step-icon">⚙️</span>
                             {{ suggestion.label }}
                         </button>
                     </div>
@@ -207,20 +207,54 @@ export default {
             }, 25); // Check every 25ms for even faster response
         },
         
-        isStepModifyingInstruction(payload) {
-            // Check if the payload is an instruction to add/modify automation steps
-            if (!payload) return false;
+        isStepModifyingInstruction(payload, label = '') {
+            // Check if the payload or label is an instruction to add/modify automation steps
+            if (!payload && !label) return false;
             
-            const lowerPayload = payload.toLowerCase();
-            return lowerPayload.includes('add') && (
-                lowerPayload.includes('trigger') ||
-                lowerPayload.includes('delay') ||
-                lowerPayload.includes('wait') ||
-                lowerPayload.includes('condition') ||
-                lowerPayload.includes('action') ||
-                lowerPayload.includes('message') ||
-                lowerPayload.includes('task')
+            const lowerPayload = (payload || '').toLowerCase();
+            const lowerLabel = (label || '').toLowerCase();
+            const combined = lowerPayload + ' ' + lowerLabel;
+            
+            // Check for explicit add/modify keywords
+            const hasAddKeyword = combined.includes('add') && (
+                combined.includes('trigger') ||
+                combined.includes('delay') ||
+                combined.includes('wait') ||
+                combined.includes('condition') ||
+                combined.includes('action') ||
+                combined.includes('message') ||
+                combined.includes('task')
             );
+            
+            // Check for "use" + trigger pattern (e.g., "use 'New Issue' trigger")
+            const hasUseTrigger = combined.includes('use') && combined.includes('trigger');
+            
+            // Check for specific trigger types
+            const triggerTypes = [
+                'new issue', 'issue raised', 'new_issue',
+                'invoice due', 'invoice_due',
+                'user joined', 'new user', 'user_joined',
+                'account created', 'account_created',
+                'booking created', 'booking_created',
+                'payment received', 'payment_received'
+            ];
+            
+            const hasTriggerType = triggerTypes.some(trigger => combined.includes(trigger));
+            
+            // Check for specific action types
+            const actionTypes = [
+                'send message', 'send_message',
+                'create task', 'create_task',
+                'send email', 'send_email',
+                'add allowance', 'add_allowance'
+            ];
+            
+            const hasActionType = actionTypes.some(action => combined.includes(action));
+            
+            // Check for delay/wait patterns
+            const hasDelay = combined.match(/\d+\s*(day|hour|minute|week)s?/);
+            
+            return hasAddKeyword || hasUseTrigger || hasTriggerType || hasActionType || hasDelay;
         }
 
     }

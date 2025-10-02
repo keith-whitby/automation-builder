@@ -208,44 +208,99 @@ export default {
                 this.$emit('tool-call', suggestion.tool_call);
             } else {
                 // Check if this is an instruction to add a step
-                if (this.isAutomationInstruction(suggestion.payload)) {
-                    this.handleAutomationInstruction(suggestion.id, suggestion.payload);
+                if (this.isAutomationInstruction(suggestion.payload, suggestion.label)) {
+                    this.handleAutomationInstruction(suggestion.id, suggestion.payload, suggestion.label);
                 }
                 // Always send payload as user message
                 this.sendMessage(suggestion.payload);
             }
         },
 
-        isAutomationInstruction(payload) {
-            // Check if the payload is an instruction to add a step
-            const lowerPayload = payload.toLowerCase();
-            return lowerPayload.includes('add') && (
-                lowerPayload.includes('trigger') ||
-                lowerPayload.includes('delay') ||
-                lowerPayload.includes('wait') ||
-                lowerPayload.includes('condition') ||
-                lowerPayload.includes('action') ||
-                lowerPayload.includes('message') ||
-                lowerPayload.includes('task')
+        isAutomationInstruction(payload, label = '') {
+            // Check if the payload or label is an instruction to add a step
+            const lowerPayload = (payload || '').toLowerCase();
+            const lowerLabel = (label || '').toLowerCase();
+            const combined = lowerPayload + ' ' + lowerLabel;
+            
+            const hasAddKeyword = combined.includes('add') && (
+                combined.includes('trigger') ||
+                combined.includes('delay') ||
+                combined.includes('wait') ||
+                combined.includes('condition') ||
+                combined.includes('action') ||
+                combined.includes('message') ||
+                combined.includes('task')
             );
+            
+            // Check for "use" + trigger pattern (e.g., "use 'New Issue' trigger")
+            const hasUseTrigger = combined.includes('use') && combined.includes('trigger');
+            
+            // Check for specific trigger/action names
+            const triggerTypes = ['new issue', 'invoice due', 'user joined', 'account created', 'booking created', 'payment received'];
+            const actionTypes = ['send message', 'create task', 'send email', 'add allowance'];
+            
+            const hasTriggerType = triggerTypes.some(t => combined.includes(t));
+            const hasActionType = actionTypes.some(a => combined.includes(a));
+            
+            return hasAddKeyword || hasUseTrigger || hasTriggerType || hasActionType;
         },
 
-        handleAutomationInstruction(id, payload) {
-            console.log('Handling automation instruction:', { id, payload });
+        handleAutomationInstruction(id, payload, label = '') {
+            console.log('Handling automation instruction:', { id, payload, label });
             
             // Parse the instruction and add the appropriate step
-            const lowerPayload = payload.toLowerCase();
+            const lowerPayload = (payload || '').toLowerCase();
+            const lowerLabel = (label || '').toLowerCase();
+            const combined = lowerPayload + ' ' + lowerLabel;
             
-            if (lowerPayload.includes('trigger')) {
+            // Map specific trigger names to trigger types
+            const triggerMap = {
+                'new issue': 'NEW_ISSUE',
+                'issue raised': 'NEW_ISSUE', 
+                'new_issue': 'NEW_ISSUE',
+                'invoice due': 'INVOICE_DUE',
+                'invoice_due': 'INVOICE_DUE',
+                'user joined': 'USER_JOINED',
+                'new user': 'USER_JOINED',
+                'user_joined': 'USER_JOINED',
+                'account created': 'ACCOUNT_CREATED',
+                'account_created': 'ACCOUNT_CREATED',
+                'booking created': 'BOOKING_CREATED',
+                'booking_created': 'BOOKING_CREATED',
+                'payment received': 'PAYMENT_RECEIVED',
+                'payment_received': 'PAYMENT_RECEIVED'
+            };
+            
+            // Check if combined text contains a specific trigger type
+            let matchedTrigger = null;
+            for (const [key, value] of Object.entries(triggerMap)) {
+                if (combined.includes(key)) {
+                    matchedTrigger = value;
+                    console.log(`Matched trigger: "${key}" -> ${value}`);
+                    break;
+                }
+            }
+            
+            if (matchedTrigger) {
+                console.log('Calling addTriggerByType with:', matchedTrigger);
+                this.addTriggerByType(matchedTrigger);
+            } else if (combined.includes('trigger')) {
+                console.log('Generic trigger keyword found, calling addTrigger');
                 this.addTrigger(id);
-            } else if (lowerPayload.includes('delay') || lowerPayload.includes('wait')) {
+            } else if (combined.includes('delay') || combined.includes('wait')) {
                 this.addDelay(id, payload);
-            } else if (lowerPayload.includes('condition')) {
+            } else if (combined.includes('condition')) {
                 this.addCondition(id, payload);
-            } else if (lowerPayload.includes('message')) {
+            } else if (combined.includes('send message') || combined.includes('send_message')) {
                 this.addSendMessageAction(id, payload);
-            } else if (lowerPayload.includes('task')) {
+            } else if (combined.includes('create task') || combined.includes('create_task')) {
                 this.addCreateTaskAction(id, payload);
+            } else if (combined.includes('message')) {
+                this.addSendMessageAction(id, payload);
+            } else if (combined.includes('task')) {
+                this.addCreateTaskAction(id, payload);
+            } else {
+                console.log('No matching automation instruction found for:', combined);
             }
         },
 
@@ -300,14 +355,17 @@ export default {
         addTrigger(triggerId) {
             // Map trigger IDs to trigger types
             const triggerMap = {
-                'issue_raised': 'ISSUE_RAISED',
-                'user_raised_issue': 'ISSUE_RAISED',
+                'issue_raised': 'NEW_ISSUE',
+                'user_raised_issue': 'NEW_ISSUE',
+                'new_issue': 'NEW_ISSUE',
                 'invoice_due': 'INVOICE_DUE',
                 'user_joined': 'USER_JOINED',
                 'new_user': 'USER_JOINED'
             };
 
-            const triggerType = triggerMap[triggerId.toLowerCase()] || 'ISSUE_RAISED';
+            const triggerType = triggerMap[triggerId.toLowerCase()] || 'NEW_ISSUE';
+            
+            console.log('addTrigger called:', { triggerId, triggerType });
 
             const trigger = {
                 workflow_step_id: "UI_" + this.createUUID(),
@@ -320,6 +378,32 @@ export default {
 
             this.currentSteps.push(trigger);
             this.updateAutomationSteps();
+            
+            console.log('✅ Added trigger:', { triggerType, trigger });
+        },
+
+        addTriggerByType(triggerType) {
+            // Add a trigger with a specific trigger type
+            console.log('addTriggerByType called with:', triggerType);
+            
+            if (!triggerType) {
+                console.error('❌ Error: triggerType is undefined!');
+                return;
+            }
+            
+            const trigger = {
+                workflow_step_id: "UI_" + this.createUUID(),
+                ui_new: true,
+                __typename: "WorkflowTrigger",
+                trigger_type: triggerType,
+                variables: [],
+                default_condition: null
+            };
+
+            this.currentSteps.push(trigger);
+            this.updateAutomationSteps();
+            
+            console.log('✅ Added trigger:', { triggerType, trigger });
         },
 
         addDelay(id, payload) {
