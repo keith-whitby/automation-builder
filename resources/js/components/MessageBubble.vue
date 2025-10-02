@@ -216,6 +216,11 @@ export default {
             const lowerId = (id || '').toLowerCase();
             const combined = lowerPayload + ' ' + lowerLabel;
             
+            // Check for delay in ID or text
+            const hasDelayInId = lowerId.includes('delay') || lowerId.includes('wait');
+            const hasDelayPattern = combined.match(/\d+\s*(day|hour|minute|week)s?/);
+            const hasDelay = hasDelayInId || hasDelayPattern || combined.includes('delay') || combined.includes('wait');
+            
             // Check for add/modify keywords with step types
             const hasAddKeyword = combined.includes('add') && (
                 combined.includes('trigger') ||
@@ -230,9 +235,6 @@ export default {
             
             // Check for "use" + trigger/action pattern (e.g., "Yes, use New Active User")
             const hasUseTrigger = combined.includes('use') && (combined.includes('trigger') || combined.includes('action'));
-            
-            // Check for delay/wait patterns (e.g., "wait 5 days")
-            const hasDelay = combined.match(/\d+\s*(day|hour|minute|week)s?/);
             
             // Check if ID matches known action types
             const knownActions = [

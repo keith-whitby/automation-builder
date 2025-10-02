@@ -198,11 +198,16 @@ export default {
         },
 
         isAutomationInstruction(payload, label = '', id = '') {
-            // Check if the payload or label is an instruction to add a step
+            // Check if the payload, label, or id is an instruction to add a step
             const lowerPayload = (payload || '').toLowerCase();
             const lowerLabel = (label || '').toLowerCase();
             const lowerId = (id || '').toLowerCase();
             const combined = lowerPayload + ' ' + lowerLabel;
+            
+            // Check for delay in ID or text (e.g., "delay_5_days" or "wait 5 days")
+            const hasDelayInId = lowerId.includes('delay') || lowerId.includes('wait');
+            const hasDelayPattern = combined.match(/\d+\s*(day|hour|minute|week)s?/);
+            const hasDelay = hasDelayInId || hasDelayPattern || combined.includes('delay') || combined.includes('wait');
             
             // Check for add/use keywords with step types
             const hasAddKeyword = combined.includes('add') && (
@@ -218,9 +223,6 @@ export default {
             
             // Check for "use" + trigger pattern (e.g., "Yes, use New Active User")
             const hasUseTrigger = combined.includes('use') && combined.includes('trigger');
-            
-            // Check for delay patterns (e.g., "wait 5 days")
-            const hasDelay = combined.match(/\d+\s*(day|hour|minute|week)s?/);
             
             // Check if ID matches known action types
             const knownActions = [
@@ -256,29 +258,30 @@ export default {
             console.log('🔍 Checking detection:', {
                 lowerId,
                 isKnownAction: knownActions.includes(lowerId),
-                hasTriggerKeyword: combined.includes('trigger') || combined.includes('use'),
+                hasDelayInId: lowerId.includes('delay') || lowerId.includes('wait'),
+                hasTriggerKeyword: combined.includes('trigger'),
                 hasEmailKeyword: combined.includes('email'),
                 hasMessageKeyword: combined.includes('message'),
                 hasTaskKeyword: combined.includes('task')
             });
             
-            // Check what type of step this is
-            if (combined.includes('trigger') || (combined.includes('use') && !knownActions.includes(lowerId))) {
-                // Convert id to Optix format: "new_active_user" -> "NEW_ACTIVE_USER"
-                const triggerType = id.toUpperCase();
-                console.log(`✅ Detected trigger instruction. ID: "${id}" -> Trigger Type: "${triggerType}"`);
-                this.addTriggerByType(triggerType);
-            } else if (knownActions.includes(lowerId)) {
-                // ID matches a known action type
-                const actionType = id.toUpperCase();
-                console.log(`✅ Detected action by ID match. ID: "${id}" -> Action Type: "${actionType}"`);
-                this.addActionByType(actionType, combined);
-            } else if (combined.includes('delay') || combined.includes('wait')) {
+            // Check what type of step this is - IMPORTANT: Check delays FIRST before triggers
+            if (lowerId.includes('delay') || lowerId.includes('wait') || combined.includes('delay') || combined.includes('wait')) {
                 console.log('✅ Detected delay instruction');
                 this.addDelay(id, combined);
             } else if (combined.includes('condition')) {
                 console.log('✅ Detected condition instruction');
                 this.addCondition(id, combined);
+            } else if (knownActions.includes(lowerId)) {
+                // ID matches a known action type
+                const actionType = id.toUpperCase();
+                console.log(`✅ Detected action by ID match. ID: "${id}" -> Action Type: "${actionType}"`);
+                this.addActionByType(actionType, combined);
+            } else if (combined.includes('trigger') || combined.includes('use')) {
+                // Convert id to Optix format: "new_active_user" -> "NEW_ACTIVE_USER"
+                const triggerType = id.toUpperCase();
+                console.log(`✅ Detected trigger instruction. ID: "${id}" -> Trigger Type: "${triggerType}"`);
+                this.addTriggerByType(triggerType);
             } else if (combined.includes('email') || combined.includes('message') || combined.includes('task')) {
                 // Try to infer action type from text
                 let actionType = id.toUpperCase();
@@ -399,10 +402,28 @@ export default {
         },
 
         addDelay(id, payload) {
-            // Extract delay value and unit from payload if possible
+            console.log('addDelay called with:', { id, payload });
+            
+            // Extract delay value and unit from payload/id
+            let value = "3";
+            let unit = "DAY";
+            
+            // Try to extract from payload first
             const delayMatch = payload.match(/(\d+)\s*(day|hour|minute|week)s?/i);
-            const value = delayMatch ? delayMatch[1] : "3";
-            const unit = delayMatch ? delayMatch[2].toUpperCase() : "DAY";
+            if (delayMatch) {
+                value = delayMatch[1];
+                unit = delayMatch[2].toUpperCase();
+            } else {
+                // Try to extract from id (e.g., "delay_5_days" -> value: 5, unit: DAYS)
+                const idMatch = id.match(/delay[_\s]*(\d+)[_\s]*(day|hour|minute|week)s?/i);
+                if (idMatch) {
+                    value = idMatch[1];
+                    unit = idMatch[2].toUpperCase();
+                }
+            }
+            
+            // Ensure unit is singular (DAYS -> DAY)
+            unit = unit.replace(/S$/, '');
 
             const delay = {
                 workflow_step_id: "UI_" + this.createUUID(),
@@ -410,6 +431,8 @@ export default {
                 delay_for: { value, unit }
             };
 
+            console.log('✅ Creating delay step:', delay);
+            
             this.currentSteps.push(delay);
             this.updateAutomationSteps();
         },
