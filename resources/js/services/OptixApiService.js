@@ -235,8 +235,8 @@ class OptixApiService {
      */
     async getWorkflowAvailableSteps() {
         const query = `
-            query GetWorkflowAvailableSteps($organization_id: ID!) {
-                workflowAvailableSteps(organization_id: $organization_id) {
+            query GetWorkflowAvailableSteps {
+                workflowAvailableSteps {
                     ... on WorkflowTrigger {
                         workflow_step_id
                         trigger_type
@@ -260,12 +260,7 @@ class OptixApiService {
             }
         `;
 
-        const organizationId = authService.getOrganizationId();
-        if (!organizationId) {
-            console.warn('OptixApiService: Organization ID not available, attempting to initialize...');
-            await this.initialize();
-        }
-        return await this.graphqlRequest(query, { organization_id: authService.getOrganizationId() });
+        return await this.graphqlRequest(query);
     }
 
     /**
@@ -306,8 +301,8 @@ class OptixApiService {
      */
     async getWorkflowTriggerTypes() {
         const query = `
-            query GetAvailableTriggers($organization_id: ID!) {
-                workflowAvailableSteps(organization_id: $organization_id) {
+            query GetAvailableTriggers {
+                workflowAvailableSteps {
                     ... on WorkflowTrigger {
                         trigger_type
                         variables
@@ -316,12 +311,7 @@ class OptixApiService {
             }
         `;
 
-        const organizationId = authService.getOrganizationId();
-        if (!organizationId) {
-            console.warn('OptixApiService: Organization ID not available, attempting to initialize...');
-            await this.initialize();
-        }
-        return await this.graphqlRequest(query, { organization_id: authService.getOrganizationId() });
+        return await this.graphqlRequest(query);
     }
 
     /**
@@ -329,8 +319,8 @@ class OptixApiService {
      */
     async getWorkflowVariables() {
         const query = `
-            query GetAvailableVariables($organization_id: ID!) {
-                workflowAvailableSteps(organization_id: $organization_id) {
+            query GetAvailableVariables {
+                workflowAvailableSteps {
                     ... on WorkflowTrigger {
                         trigger_type
                         variables
@@ -339,12 +329,7 @@ class OptixApiService {
             }
         `;
 
-        const organizationId = authService.getOrganizationId();
-        if (!organizationId) {
-            console.warn('OptixApiService: Organization ID not available, attempting to initialize...');
-            await this.initialize();
-        }
-        return await this.graphqlRequest(query, { organization_id: authService.getOrganizationId() });
+        return await this.graphqlRequest(query);
     }
 
     /**
