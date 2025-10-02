@@ -56,5 +56,7 @@ export default {
     margin: 0;
     padding: 0;
     height: 100%;
+    border-radius: 10px;
+    overflow: hidden;
 }
 </style>

@@ -238,7 +238,7 @@ export default {
         },
 
         handleAutomationInstruction(id, payload, label = '') {
-            console.log('Handling automation instruction:', { id, payload, label });
+            console.log('🔍 Handling automation instruction:', { id, payload, label });
             
             // Parse the instruction and add the appropriate step
             const lowerPayload = (payload || '').toLowerCase();
@@ -253,28 +253,46 @@ export default {
                 'add_to_group_conversation', 'change_account_type', 'change_user_status'
             ];
             
+            console.log('🔍 Checking detection:', {
+                lowerId,
+                isKnownAction: knownActions.includes(lowerId),
+                hasTriggerKeyword: combined.includes('trigger') || combined.includes('use'),
+                hasEmailKeyword: combined.includes('email'),
+                hasMessageKeyword: combined.includes('message'),
+                hasTaskKeyword: combined.includes('task')
+            });
+            
             // Check what type of step this is
-            if (combined.includes('trigger') || combined.includes('use')) {
+            if (combined.includes('trigger') || (combined.includes('use') && !knownActions.includes(lowerId))) {
                 // Convert id to Optix format: "new_active_user" -> "NEW_ACTIVE_USER"
                 const triggerType = id.toUpperCase();
-                console.log(`Detected trigger instruction. ID: "${id}" -> Trigger Type: "${triggerType}"`);
+                console.log(`✅ Detected trigger instruction. ID: "${id}" -> Trigger Type: "${triggerType}"`);
                 this.addTriggerByType(triggerType);
             } else if (knownActions.includes(lowerId)) {
                 // ID matches a known action type
                 const actionType = id.toUpperCase();
-                console.log(`Detected action by ID match. ID: "${id}" -> Action Type: "${actionType}"`);
+                console.log(`✅ Detected action by ID match. ID: "${id}" -> Action Type: "${actionType}"`);
                 this.addActionByType(actionType, combined);
             } else if (combined.includes('delay') || combined.includes('wait')) {
+                console.log('✅ Detected delay instruction');
                 this.addDelay(id, combined);
             } else if (combined.includes('condition')) {
+                console.log('✅ Detected condition instruction');
                 this.addCondition(id, combined);
             } else if (combined.includes('email') || combined.includes('message') || combined.includes('task')) {
-                // Convert id to Optix format: "send_message" -> "SEND_MESSAGE"
-                const actionType = id.toUpperCase();
-                console.log(`Detected action instruction. ID: "${id}" -> Action Type: "${actionType}"`);
+                // Try to infer action type from text
+                let actionType = id.toUpperCase();
+                if (combined.includes('send') && combined.includes('email')) {
+                    actionType = 'SEND_EMAIL';
+                } else if (combined.includes('send') && combined.includes('message')) {
+                    actionType = 'SEND_MESSAGE';
+                } else if (combined.includes('create') && combined.includes('task')) {
+                    actionType = 'CREATE_TASK';
+                }
+                console.log(`✅ Detected action by keyword. Inferred Action Type: "${actionType}"`);
                 this.addActionByType(actionType, combined);
             } else {
-                console.log('No matching automation instruction found for:', combined);
+                console.log('❌ No matching automation instruction found for:', { id, payload, label, combined });
             }
         },
 
