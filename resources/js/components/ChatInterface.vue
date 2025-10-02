@@ -5,10 +5,22 @@
             <div class="header-content">
                 <div class="header-left">
                     <div class="sparkle-icon">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M9.5 2L10.5 8L16.5 9L10.5 10L9.5 16L8.5 10L2.5 9L8.5 8L9.5 2Z" fill="#8B5CF6"/>
-                            <path d="M14.5 6L15 8.5L17.5 9L15 9.5L14.5 12L14 9.5L11.5 9L14 8.5L14.5 6Z" fill="#F59E0B"/>
-                            <path d="M19.5 4L20 6L22 6.5L20 7L19.5 9L19 7L17 6.5L19 6L19.5 4Z" fill="#06B6D4"/>
+                        <svg width="28" height="28" viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="14" cy="14" r="14" fill="#E8DEEE"/>
+                            <mask id="mask0_5949_82472" style="mask-type:alpha" maskUnits="userSpaceOnUse" x="5" y="5" width="18" height="18">
+                                <rect x="5" y="5" width="18" height="18" fill="#D9D9D9"/>
+                            </mask>
+                            <g mask="url(#mask0_5949_82472)">
+                                <path d="M19.25 11.75L18.3125 9.6875L16.25 8.75L18.3125 7.8125L19.25 5.75L20.1875 7.8125L22.25 8.75L20.1875 9.6875L19.25 11.75ZM19.25 22.25L18.3125 20.1875L16.25 19.25L18.3125 18.3125L19.25 16.25L20.1875 18.3125L22.25 19.25L20.1875 20.1875L19.25 22.25ZM11.75 20L9.875 15.875L5.75 14L9.875 12.125L11.75 8L13.625 12.125L17.75 14L13.625 15.875L11.75 20ZM11.75 16.3625L12.5 14.75L14.1125 14L12.5 13.25L11.75 11.6375L11 13.25L9.3875 14L11 14.75L11.75 16.3625Z" fill="url(#paint0_linear_5949_82472)"/>
+                            </g>
+                            <defs>
+                                <linearGradient id="paint0_linear_5949_82472" x1="14" y1="5.75" x2="14" y2="22.25" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#CD99FF"/>
+                                    <stop offset="0.331731" stop-color="#D9730D"/>
+                                    <stop offset="0.668269" stop-color="#B647CF"/>
+                                    <stop offset="1" stop-color="#00FFA6"/>
+                                </linearGradient>
+                            </defs>
                         </svg>
                     </div>
                     <h1 class="header-title">Assistant</h1>
