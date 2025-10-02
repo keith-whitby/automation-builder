@@ -21,9 +21,9 @@
                             :key="`${suggestion.id}-${index}`"
                             @click="handleQuickReply(suggestion)"
                             class="quick-reply-button secondary"
-                            :class="{ 'has-step': suggestion.step }"
+                            :class="{ 'has-step': suggestion.step || isStepModifyingInstruction(suggestion.payload) }"
                         >
-                            <span v-if="suggestion.step" class="step-icon">+</span>
+                            <span v-if="suggestion.step || isStepModifyingInstruction(suggestion.payload)" class="step-icon">⚙️</span>
                             {{ suggestion.label }}
                         </button>
                     </div>
@@ -207,6 +207,21 @@ export default {
             }, 25); // Check every 25ms for even faster response
         },
         
+        isStepModifyingInstruction(payload) {
+            // Check if the payload is an instruction to add/modify automation steps
+            if (!payload) return false;
+            
+            const lowerPayload = payload.toLowerCase();
+            return lowerPayload.includes('add') && (
+                lowerPayload.includes('trigger') ||
+                lowerPayload.includes('delay') ||
+                lowerPayload.includes('wait') ||
+                lowerPayload.includes('condition') ||
+                lowerPayload.includes('action') ||
+                lowerPayload.includes('message') ||
+                lowerPayload.includes('task')
+            );
+        }
 
     }
 };
@@ -632,17 +647,10 @@ button.quick-reply-button:hover {
 /* Step icon styling */
 .step-icon {
     display: inline-block;
-    width: 16px;
-    height: 16px;
-    line-height: 14px;
-    text-align: center;
-    background: #10b981;
-    color: white;
-    border-radius: 50%;
-    font-size: 12px;
-    font-weight: bold;
+    font-size: 14px;
     margin-right: 6px;
     flex-shrink: 0;
+    opacity: 0.8;
 }
 
 .quick-reply-button.has-step {
