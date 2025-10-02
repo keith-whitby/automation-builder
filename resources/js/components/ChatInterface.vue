@@ -22,19 +22,6 @@
                             </div>
                         </div>
                     </div>
-
-                    <!-- Test Buttons -->
-                    <div class="test-section">
-                        <button @click="setRandomName" class="test-button">
-                            🎲 Set Random Automation Name
-                        </button>
-                        <button @click="testOpenStep" class="test-button">
-                            📝 Test Open Step
-                        </button>
-                        <button @click="testSetSteps" class="test-button">
-                            ⚙️ Test Set Steps
-                        </button>
-                    </div>
                 </div>
             </div>
 
@@ -208,7 +195,7 @@ export default {
                 this.$emit('tool-call', suggestion.tool_call);
             } else {
                 // Check if this is an instruction to add a step
-                if (this.isAutomationInstruction(suggestion.payload, suggestion.label)) {
+                if (this.isAutomationInstruction(suggestion.payload, suggestion.label, suggestion.id)) {
                     this.handleAutomationInstruction(suggestion.id, suggestion.payload, suggestion.label);
                 }
                 // Always send payload as user message
@@ -216,10 +203,11 @@ export default {
             }
         },
 
-        isAutomationInstruction(payload, label = '') {
+        isAutomationInstruction(payload, label = '', id = '') {
             // Check if the payload or label is an instruction to add a step
             const lowerPayload = (payload || '').toLowerCase();
             const lowerLabel = (label || '').toLowerCase();
+            const lowerId = (id || '').toLowerCase();
             const combined = lowerPayload + ' ' + lowerLabel;
             
             // Check for add/use keywords with step types
@@ -230,7 +218,8 @@ export default {
                 combined.includes('condition') ||
                 combined.includes('action') ||
                 combined.includes('message') ||
-                combined.includes('task')
+                combined.includes('task') ||
+                combined.includes('email')
             );
             
             // Check for "use" + trigger pattern (e.g., "Yes, use New Active User")
@@ -239,7 +228,19 @@ export default {
             // Check for delay patterns (e.g., "wait 5 days")
             const hasDelay = combined.match(/\d+\s*(day|hour|minute|week)s?/);
             
-            return hasAddKeyword || hasUseTrigger || hasDelay;
+            // Check if ID matches known action types
+            const knownActions = [
+                'send_email', 'send_message', 'create_task', 'post_to_feed',
+                'send_doc_to_sign', 'add_allowance', 'add_invoice_item',
+                'add_to_group_conversation', 'change_account_type', 'change_user_status'
+            ];
+            const isKnownAction = knownActions.includes(lowerId);
+            
+            // Check if label/payload indicates an action
+            const actionKeywords = ['send email', 'send message', 'create task', 'send a message', 'send an email'];
+            const hasActionKeyword = actionKeywords.some(keyword => combined.includes(keyword));
+            
+            return hasAddKeyword || hasUseTrigger || hasDelay || isKnownAction || hasActionKeyword;
         },
 
         handleAutomationInstruction(id, payload, label = '') {
@@ -248,19 +249,32 @@ export default {
             // Parse the instruction and add the appropriate step
             const lowerPayload = (payload || '').toLowerCase();
             const lowerLabel = (label || '').toLowerCase();
+            const lowerId = (id || '').toLowerCase();
             const combined = lowerPayload + ' ' + lowerLabel;
             
+            // List of known action IDs from Optix API
+            const knownActions = [
+                'send_email', 'send_message', 'create_task', 'post_to_feed',
+                'send_doc_to_sign', 'add_allowance', 'add_invoice_item',
+                'add_to_group_conversation', 'change_account_type', 'change_user_status'
+            ];
+            
             // Check what type of step this is
-            if (combined.includes('trigger')) {
+            if (combined.includes('trigger') || combined.includes('use')) {
                 // Convert id to Optix format: "new_active_user" -> "NEW_ACTIVE_USER"
                 const triggerType = id.toUpperCase();
                 console.log(`Detected trigger instruction. ID: "${id}" -> Trigger Type: "${triggerType}"`);
                 this.addTriggerByType(triggerType);
+            } else if (knownActions.includes(lowerId)) {
+                // ID matches a known action type
+                const actionType = id.toUpperCase();
+                console.log(`Detected action by ID match. ID: "${id}" -> Action Type: "${actionType}"`);
+                this.addActionByType(actionType, combined);
             } else if (combined.includes('delay') || combined.includes('wait')) {
                 this.addDelay(id, combined);
             } else if (combined.includes('condition')) {
                 this.addCondition(id, combined);
-            } else if (combined.includes('action') || combined.includes('message') || combined.includes('task')) {
+            } else if (combined.includes('email') || combined.includes('message') || combined.includes('task')) {
                 // Convert id to Optix format: "send_message" -> "SEND_MESSAGE"
                 const actionType = id.toUpperCase();
                 console.log(`Detected action instruction. ID: "${id}" -> Action Type: "${actionType}"`);
@@ -624,32 +638,6 @@ export default {
 .prompt-example:hover {
     background: #f9fafb;
     border-color: #d1d5db;
-}
-
-.test-section {
-    margin-top: 32px;
-    padding-top: 24px;
-    border-top: 1px solid #e5e5e5;
-    display: flex;
-    gap: 12px;
-    justify-content: center;
-    flex-wrap: wrap;
-}
-
-.test-button {
-    background: #2196F3;
-    color: white;
-    border: none;
-    padding: 12px 24px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: background-color 0.2s ease;
-}
-
-.test-button:hover {
-    background: #1976D2;
 }
 
 .message-wrapper {

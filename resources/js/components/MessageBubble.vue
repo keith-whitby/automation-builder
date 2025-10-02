@@ -21,9 +21,9 @@
                             :key="`${suggestion.id}-${index}`"
                             @click="handleQuickReply(suggestion)"
                             class="quick-reply-button secondary"
-                            :class="{ 'has-step': suggestion.step || isStepModifyingInstruction(suggestion.payload, suggestion.label) }"
+                            :class="{ 'has-step': suggestion.step || isStepModifyingInstruction(suggestion.payload, suggestion.label, suggestion.id) }"
                         >
-                            <span v-if="suggestion.step || isStepModifyingInstruction(suggestion.payload, suggestion.label)" class="step-icon">+</span>
+                            <span v-if="suggestion.step || isStepModifyingInstruction(suggestion.payload, suggestion.label, suggestion.id)" class="step-icon">+</span>
                             {{ suggestion.label }}
                         </button>
                     </div>
@@ -207,12 +207,13 @@ export default {
             }, 25); // Check every 25ms for even faster response
         },
         
-        isStepModifyingInstruction(payload, label = '') {
-            // Check if the payload or label is an instruction to add/modify automation steps
-            if (!payload && !label) return false;
+        isStepModifyingInstruction(payload, label = '', id = '') {
+            // Check if the payload, label, or id is an instruction to add/modify automation steps
+            if (!payload && !label && !id) return false;
             
             const lowerPayload = (payload || '').toLowerCase();
             const lowerLabel = (label || '').toLowerCase();
+            const lowerId = (id || '').toLowerCase();
             const combined = lowerPayload + ' ' + lowerLabel;
             
             // Check for add/modify keywords with step types
@@ -223,7 +224,8 @@ export default {
                 combined.includes('condition') ||
                 combined.includes('action') ||
                 combined.includes('message') ||
-                combined.includes('task')
+                combined.includes('task') ||
+                combined.includes('email')
             );
             
             // Check for "use" + trigger/action pattern (e.g., "Yes, use New Active User")
@@ -232,7 +234,19 @@ export default {
             // Check for delay/wait patterns (e.g., "wait 5 days")
             const hasDelay = combined.match(/\d+\s*(day|hour|minute|week)s?/);
             
-            return hasAddKeyword || hasUseTrigger || hasDelay;
+            // Check if ID matches known action types
+            const knownActions = [
+                'send_email', 'send_message', 'create_task', 'post_to_feed',
+                'send_doc_to_sign', 'add_allowance', 'add_invoice_item',
+                'add_to_group_conversation', 'change_account_type', 'change_user_status'
+            ];
+            const isKnownAction = knownActions.includes(lowerId);
+            
+            // Check if label/payload indicates an action
+            const actionKeywords = ['send email', 'send message', 'create task', 'send a message', 'send an email'];
+            const hasActionKeyword = actionKeywords.some(keyword => combined.includes(keyword));
+            
+            return hasAddKeyword || hasUseTrigger || hasDelay || isKnownAction || hasActionKeyword;
         }
 
     }
