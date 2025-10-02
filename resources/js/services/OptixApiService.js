@@ -153,6 +153,11 @@ class OptixApiService {
                 variables: variables
             };
 
+            // Log organization_id if present in variables
+            if (variables.organization_id) {
+                console.log('✅ OptixApiService: Using organization_id in GraphQL request:', variables.organization_id);
+            }
+            
             console.log('OptixApiService: Making GraphQL request', { query: query.substring(0, 100) + '...', variables });
 
             const response = await fetch(this.graphqlEndpoint, {

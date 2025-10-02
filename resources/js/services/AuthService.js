@@ -26,13 +26,21 @@ class AuthService {
                 this.isValid = true;
                 this.error = null;
                 
-                // Extract organization ID from URL if available
+                // Extract organization ID and subdomain from URL if available
                 const urlParams = new URLSearchParams(window.location.search);
                 this.organizationId = urlParams.get('organization_id');
+                const subdomain = urlParams.get('subdomain');
+                
+                console.log('✅ AuthService: URL Parameters Received:', {
+                    organization_id: this.organizationId,
+                    subdomain: subdomain,
+                    token: this.token ? '***SET***' : null
+                });
                 
                 // Store in localStorage
                 localStorage.setItem('optix_auth_token', urlResult.token);
                 localStorage.setItem('optix_organization_id', this.organizationId || '');
+                localStorage.setItem('optix_subdomain', subdomain || '');
                 localStorage.setItem('optix_auth_timestamp', new Date().toISOString());
                 
                 this.lastValidated = new Date().toISOString();
@@ -48,6 +56,14 @@ class AuthService {
                 this.isValid = true;
                 this.error = null;
                 this.organizationId = localStorage.getItem('optix_organization_id');
+                const subdomain = localStorage.getItem('optix_subdomain');
+                
+                console.log('✅ AuthService: Restored from Storage:', {
+                    organization_id: this.organizationId,
+                    subdomain: subdomain,
+                    token: '***SET***'
+                });
+                
                 this.lastValidated = new Date().toISOString();
                 return true;
             }
@@ -171,6 +187,7 @@ class AuthService {
     clearStorage() {
         localStorage.removeItem('optix_auth_token');
         localStorage.removeItem('optix_organization_id');
+        localStorage.removeItem('optix_subdomain');
         localStorage.removeItem('optix_auth_timestamp');
     }
 
