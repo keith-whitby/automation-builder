@@ -215,7 +215,7 @@ export default {
             const lowerLabel = (label || '').toLowerCase();
             const combined = lowerPayload + ' ' + lowerLabel;
             
-            // Check for explicit add/modify keywords
+            // Check for add/modify keywords with step types
             const hasAddKeyword = combined.includes('add') && (
                 combined.includes('trigger') ||
                 combined.includes('delay') ||
@@ -226,35 +226,13 @@ export default {
                 combined.includes('task')
             );
             
-            // Check for "use" + trigger pattern (e.g., "use 'New Issue' trigger")
-            const hasUseTrigger = combined.includes('use') && combined.includes('trigger');
+            // Check for "use" + trigger/action pattern (e.g., "Yes, use New Active User")
+            const hasUseTrigger = combined.includes('use') && (combined.includes('trigger') || combined.includes('action'));
             
-            // Check for specific trigger types
-            const triggerTypes = [
-                'new issue', 'issue raised', 'new_issue',
-                'invoice due', 'invoice_due',
-                'user joined', 'new user', 'user_joined',
-                'account created', 'account_created',
-                'booking created', 'booking_created',
-                'payment received', 'payment_received'
-            ];
-            
-            const hasTriggerType = triggerTypes.some(trigger => combined.includes(trigger));
-            
-            // Check for specific action types
-            const actionTypes = [
-                'send message', 'send_message',
-                'create task', 'create_task',
-                'send email', 'send_email',
-                'add allowance', 'add_allowance'
-            ];
-            
-            const hasActionType = actionTypes.some(action => combined.includes(action));
-            
-            // Check for delay/wait patterns
+            // Check for delay/wait patterns (e.g., "wait 5 days")
             const hasDelay = combined.match(/\d+\s*(day|hour|minute|week)s?/);
             
-            return hasAddKeyword || hasUseTrigger || hasTriggerType || hasActionType || hasDelay;
+            return hasAddKeyword || hasUseTrigger || hasDelay;
         }
 
     }

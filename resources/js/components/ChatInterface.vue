@@ -222,6 +222,7 @@ export default {
             const lowerLabel = (label || '').toLowerCase();
             const combined = lowerPayload + ' ' + lowerLabel;
             
+            // Check for add/use keywords with step types
             const hasAddKeyword = combined.includes('add') && (
                 combined.includes('trigger') ||
                 combined.includes('delay') ||
@@ -232,17 +233,13 @@ export default {
                 combined.includes('task')
             );
             
-            // Check for "use" + trigger pattern (e.g., "use 'New Issue' trigger")
+            // Check for "use" + trigger pattern (e.g., "Yes, use New Active User")
             const hasUseTrigger = combined.includes('use') && combined.includes('trigger');
             
-            // Check for specific trigger/action names
-            const triggerTypes = ['new issue', 'invoice due', 'user joined', 'account created', 'booking created', 'payment received'];
-            const actionTypes = ['send message', 'create task', 'send email', 'add allowance'];
+            // Check for delay patterns (e.g., "wait 5 days")
+            const hasDelay = combined.match(/\d+\s*(day|hour|minute|week)s?/);
             
-            const hasTriggerType = triggerTypes.some(t => combined.includes(t));
-            const hasActionType = actionTypes.some(a => combined.includes(a));
-            
-            return hasAddKeyword || hasUseTrigger || hasTriggerType || hasActionType;
+            return hasAddKeyword || hasUseTrigger || hasDelay;
         },
 
         handleAutomationInstruction(id, payload, label = '') {
@@ -253,52 +250,21 @@ export default {
             const lowerLabel = (label || '').toLowerCase();
             const combined = lowerPayload + ' ' + lowerLabel;
             
-            // Map specific trigger names to trigger types
-            const triggerMap = {
-                'new issue': 'NEW_ISSUE',
-                'issue raised': 'NEW_ISSUE', 
-                'new_issue': 'NEW_ISSUE',
-                'invoice due': 'INVOICE_DUE',
-                'invoice_due': 'INVOICE_DUE',
-                'user joined': 'USER_JOINED',
-                'new user': 'USER_JOINED',
-                'user_joined': 'USER_JOINED',
-                'account created': 'ACCOUNT_CREATED',
-                'account_created': 'ACCOUNT_CREATED',
-                'booking created': 'BOOKING_CREATED',
-                'booking_created': 'BOOKING_CREATED',
-                'payment received': 'PAYMENT_RECEIVED',
-                'payment_received': 'PAYMENT_RECEIVED'
-            };
-            
-            // Check if combined text contains a specific trigger type
-            let matchedTrigger = null;
-            for (const [key, value] of Object.entries(triggerMap)) {
-                if (combined.includes(key)) {
-                    matchedTrigger = value;
-                    console.log(`Matched trigger: "${key}" -> ${value}`);
-                    break;
-                }
-            }
-            
-            if (matchedTrigger) {
-                console.log('Calling addTriggerByType with:', matchedTrigger);
-                this.addTriggerByType(matchedTrigger);
-            } else if (combined.includes('trigger')) {
-                console.log('Generic trigger keyword found, calling addTrigger');
-                this.addTrigger(id);
+            // Check what type of step this is
+            if (combined.includes('trigger')) {
+                // Convert id to Optix format: "new_active_user" -> "NEW_ACTIVE_USER"
+                const triggerType = id.toUpperCase();
+                console.log(`Detected trigger instruction. ID: "${id}" -> Trigger Type: "${triggerType}"`);
+                this.addTriggerByType(triggerType);
             } else if (combined.includes('delay') || combined.includes('wait')) {
-                this.addDelay(id, payload);
+                this.addDelay(id, combined);
             } else if (combined.includes('condition')) {
-                this.addCondition(id, payload);
-            } else if (combined.includes('send message') || combined.includes('send_message')) {
-                this.addSendMessageAction(id, payload);
-            } else if (combined.includes('create task') || combined.includes('create_task')) {
-                this.addCreateTaskAction(id, payload);
-            } else if (combined.includes('message')) {
-                this.addSendMessageAction(id, payload);
-            } else if (combined.includes('task')) {
-                this.addCreateTaskAction(id, payload);
+                this.addCondition(id, combined);
+            } else if (combined.includes('action') || combined.includes('message') || combined.includes('task')) {
+                // Convert id to Optix format: "send_message" -> "SEND_MESSAGE"
+                const actionType = id.toUpperCase();
+                console.log(`Detected action instruction. ID: "${id}" -> Action Type: "${actionType}"`);
+                this.addActionByType(actionType, combined);
             } else {
                 console.log('No matching automation instruction found for:', combined);
             }
@@ -443,56 +409,79 @@ export default {
             this.updateAutomationSteps();
         },
 
-        addSendMessageAction(id, payload) {
-            // Extract message from payload if possible
-            const messageMatch = payload.match(/["'](.+?)["']/);
-            const message = messageMatch ? `<p>${messageMatch[1]}</p>` : "<p>Message content here</p>";
-
+        addActionByType(actionType, textContent = '') {
+            // Add an action with a specific action type
+            console.log('addActionByType called with:', { actionType, textContent });
+            
+            if (!actionType) {
+                console.error('❌ Error: actionType is undefined!');
+                return;
+            }
+            
             const action = {
                 workflow_step_id: "UI_" + this.createUUID(),
                 ui_new: true,
-                action_type: "SEND_MESSAGE",
-                send_message: {
+                action_type: actionType
+            };
+            
+            // Add specific action properties based on type
+            if (actionType === 'SEND_MESSAGE' || actionType.includes('MESSAGE')) {
+                const messageMatch = textContent.match(/["'](.+?)["']/);
+                const message = messageMatch ? `<p>${messageMatch[1]}</p>` : "<p>Message content here</p>";
+                action.send_message = {
                     message: message,
                     from_admin_user_id: null,
                     target_admin_user_id: null,
                     target_group_conversation_id: null,
                     target_team_admins: true
-                }
-            };
-
-            this.currentSteps.push(action);
-            this.updateAutomationSteps();
-        },
-
-        addCreateTaskAction(id, payload) {
-            // Extract task details from payload if possible
-            const action = {
-                workflow_step_id: "UI_" + this.createUUID(),
-                ui_new: true,
-                action_type: "CREATE_TASK",
-                create_task: {
+                };
+            } else if (actionType === 'CREATE_TASK' || actionType.includes('TASK')) {
+                action.create_task = {
                     name: "<p>New task</p>",
                     description: "<p>Task description</p>",
                     assignee_user_id: null,
                     set_assignee_primary_location_admin: true,
                     set_no_due_timestamp: false,
                     to_due: { value: 0, unit: "DAY" }
-                }
-            };
-
+                };
+            } else if (actionType === 'SEND_EMAIL' || actionType.includes('EMAIL')) {
+                action.send_email = {
+                    subject: "Email subject",
+                    body: "<p>Email body</p>",
+                    target_admin_user_id: null,
+                    target_team_admins: true,
+                    notification_type: null,
+                    mail_provider_credentials_id: null
+                };
+            }
+            
             this.currentSteps.push(action);
             this.updateAutomationSteps();
+            
+            console.log('✅ Added action:', { actionType, action });
+        },
+
+        addSendMessageAction(id, payload) {
+            // Legacy method - use addActionByType instead
+            this.addActionByType('SEND_MESSAGE', payload);
+        },
+
+        addCreateTaskAction(id, payload) {
+            // Legacy method - use addActionByType instead
+            this.addActionByType('CREATE_TASK', payload);
         },
 
         updateAutomationSteps() {
+            // Create a plain copy without Vue reactivity to avoid infinite loops
+            const plainSteps = JSON.parse(JSON.stringify(this.currentSteps));
+            
             // Send the complete updated steps array to parent window
             window.parent.postMessage({ 
                 command: "AssistantSetAutomationSteps", 
-                payload: { steps: this.currentSteps } 
+                payload: { steps: plainSteps } 
             }, '*');
             
-            console.log('Updated automation steps:', this.currentSteps);
+            console.log('✅ Updated automation steps (count: ' + plainSteps.length + '):', plainSteps);
         },
 
         testSetSteps() {
