@@ -189,11 +189,11 @@ export default {
             
             // Send message to parent window
             window.parent.postMessage({ 
-                command: "AssistantSetName", 
+                command: "AssistantSetAutomationName", 
                 payload: { name: randomTitle } 
             }, '*');
             
-            console.log('Sent AssistantSetName message:', { command: "AssistantSetName", payload: { name: randomTitle } });
+            console.log('Sent AssistantSetAutomationName message:', { command: "AssistantSetAutomationName", payload: { name: randomTitle } });
         },
 
         testOpenStep() {
