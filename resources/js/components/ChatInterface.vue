@@ -23,10 +23,13 @@
                         </div>
                     </div>
 
-                    <!-- Test Button -->
+                    <!-- Test Buttons -->
                     <div class="test-section">
                         <button @click="setRandomName" class="test-button">
                             🎲 Set Random Automation Name
+                        </button>
+                        <button @click="testOpenStep" class="test-button">
+                            📝 Test Open Step
                         </button>
                     </div>
                 </div>
@@ -191,6 +194,16 @@ export default {
             }, '*');
             
             console.log('Sent AssistantSetName message:', { command: "AssistantSetName", payload: { name: randomTitle } });
+        },
+
+        testOpenStep() {
+            // Send message to parent window to open automation step
+            window.parent.postMessage({ 
+                command: "AssistantOpenAutomationStep", 
+                payload: { position: 2 } 
+            }, '*');
+            
+            console.log('Sent AssistantOpenAutomationStep message:', { command: "AssistantOpenAutomationStep", payload: { position: 2 } });
         }
     }
 };
@@ -273,6 +286,10 @@ export default {
     margin-top: 32px;
     padding-top: 24px;
     border-top: 1px solid #e5e5e5;
+    display: flex;
+    gap: 12px;
+    justify-content: center;
+    flex-wrap: wrap;
 }
 
 .test-button {
