@@ -23,7 +23,7 @@
                             class="quick-reply-button secondary"
                             :class="{ 'has-step': suggestion.step || isStepModifyingInstruction(suggestion.payload, suggestion.label) }"
                         >
-                            <span v-if="suggestion.step || isStepModifyingInstruction(suggestion.payload, suggestion.label)" class="step-icon">⚙️</span>
+                            <span v-if="suggestion.step || isStepModifyingInstruction(suggestion.payload, suggestion.label)" class="step-icon">+</span>
                             {{ suggestion.label }}
                         </button>
                     </div>
@@ -403,10 +403,9 @@ export default {
     font-weight: 500;
     cursor: pointer;
     transition: all 0.2s ease;
-    white-space: nowrap;
-    max-width: 200px;
-    overflow: hidden;
-    text-overflow: ellipsis;
+    white-space: normal;
+    word-wrap: break-word;
+    line-height: 1.4;
 }
 
 .quick-reply-button:hover {
@@ -521,10 +520,9 @@ export default {
     font-weight: 500 !important;
     cursor: pointer !important;
     transition: all 0.2s ease !important;
-    white-space: nowrap !important;
-    max-width: 200px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    line-height: 1.4 !important;
 }
 
 /* Target the button element directly with maximum specificity */
@@ -543,10 +541,9 @@ export default {
     font-weight: 500 !important;
     cursor: pointer !important;
     transition: all 0.2s ease !important;
-    white-space: nowrap !important;
-    max-width: 200px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    line-height: 1.4 !important;
     -webkit-appearance: none !important;
     appearance: none !important;
     box-sizing: border-box !important;
@@ -587,16 +584,14 @@ export default {
     font-weight: 500 !important;
     cursor: pointer !important;
     transition: all 0.2s ease !important;
-    white-space: nowrap !important;
-    max-width: 200px !important;
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
+    white-space: normal !important;
+    word-wrap: break-word !important;
+    line-height: 1.4 !important;
     -webkit-appearance: none !important;
     appearance: none !important;
     box-sizing: border-box !important;
     font-family: inherit !important;
     text-transform: none !important;
-    line-height: 1.5 !important;
     margin: 0 !important;
 }
 
@@ -681,10 +676,11 @@ button.quick-reply-button:hover {
 /* Step icon styling */
 .step-icon {
     display: inline-block;
-    font-size: 14px;
+    font-size: 16px;
     margin-right: 6px;
     flex-shrink: 0;
-    opacity: 0.8;
+    opacity: 0.7;
+    font-weight: bold;
 }
 
 .quick-reply-button.has-step {
