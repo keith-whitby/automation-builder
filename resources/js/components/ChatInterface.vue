@@ -1,5 +1,29 @@
 <template>
     <div class="chat-interface">
+        <!-- Header -->
+        <div class="chat-header">
+            <div class="header-content">
+                <div class="header-left">
+                    <div class="sparkle-icon">
+                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M9.5 2L10.5 8L16.5 9L10.5 10L9.5 16L8.5 10L2.5 9L8.5 8L9.5 2Z" fill="#8B5CF6"/>
+                            <path d="M14.5 6L15 8.5L17.5 9L15 9.5L14.5 12L14 9.5L11.5 9L14 8.5L14.5 6Z" fill="#F59E0B"/>
+                            <path d="M19.5 4L20 6L22 6.5L20 7L19.5 9L19 7L17 6.5L19 6L19.5 4Z" fill="#06B6D4"/>
+                        </svg>
+                    </div>
+                    <h1 class="header-title">Assistant</h1>
+                    <div class="beta-chip">AI beta</div>
+                </div>
+                <div class="header-right">
+                    <button class="close-button" @click="handleClose">
+                        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+
         <!-- Messages Area -->
         <div class="messages-area" ref="messagesContainer">
 
@@ -597,6 +621,11 @@ export default {
             }, '*');
             
             console.log('Sent AssistantSetAutomationSteps message:', { command: "AssistantSetAutomationSteps", payload: { steps } });
+        },
+
+        handleClose() {
+            // Emit close event to parent component
+            this.$emit('close');
         }
     }
 };
@@ -611,10 +640,85 @@ export default {
     overflow: hidden;
 }
 
+.chat-header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 56px;
+    background: white;
+    border-bottom: 1px solid #e5e7eb;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+}
+
+.header-content {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 100%;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.sparkle-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.header-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: #111827;
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.beta-chip {
+    background: #f3f4f6;
+    color: #374151;
+    padding: 4px 8px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+}
+
+.close-button {
+    background: none;
+    border: none;
+    color: #6b7280;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+.close-button:hover {
+    color: #374151;
+    background-color: #f3f4f6;
+}
+
 .messages-area {
     flex: 1;
     overflow-y: auto;
-    padding: 0;
+    padding: 56px 0 0 0;
     min-height: 0;
 }
 
