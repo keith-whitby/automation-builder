@@ -57,6 +57,25 @@
                     :status-message="statusMessage"
                 />
             </div>
+
+            <!-- Status History -->
+            <div v-if="statusHistory.length > 0 && !isTyping" class="message-wrapper">
+                <div class="message assistant">
+                    <div class="message-container">
+                        <div class="message-content">
+                            <div class="status-history">
+                                <div 
+                                    v-for="(status, index) in statusHistory" 
+                                    :key="index"
+                                    class="status-item"
+                                >
+                                    {{ status.displayText }}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
 
         <!-- Input Area -->
@@ -108,6 +127,10 @@ export default {
         statusMessage: {
             type: String,
             default: ''
+        },
+        statusHistory: {
+            type: Array,
+            default: () => []
         }
     },
     data() {
@@ -637,5 +660,27 @@ export default {
     .input-area {
         padding: 8px 8px 32px 8px;
     }
+}
+
+/* Status History Styles */
+.status-history {
+    background-color: rgba(255, 255, 255, 0.95);
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.status-item {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 4px 0;
+    padding: 2px 0;
+}
+
+.status-item:not(:last-child) {
+    border-bottom: 1px solid #e5e7eb;
+    padding-bottom: 6px;
 }
 </style>

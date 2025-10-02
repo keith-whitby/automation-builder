@@ -7,6 +7,7 @@
                     :messages="messages"
                     :is-typing="isLoading"
                     :status-message="statusMessage"
+                    :status-history="currentStatusHistory"
                     @send-message="handleSendMessage"
                     @tool-call="handleToolCall"
                 />
@@ -19,19 +20,6 @@
                     :current-step="currentStep"
                     @start-again="handleStartAgain"
                 />
-            </div>
-        </div>
-        
-        <!-- Status History for Current Message -->
-        <div v-if="currentStatusHistory.length > 0 && !isLoading" class="status-history-overlay">
-            <div class="status-history">
-                <div 
-                    v-for="(status, index) in currentStatusHistory" 
-                    :key="index"
-                    class="status-item"
-                >
-                    {{ status.displayText }}
-                </div>
             </div>
         </div>
     </div>
@@ -282,38 +270,6 @@ export default {
     flex-direction: column;
 }
 
-.status-history-overlay {
-    position: absolute;
-    bottom: 20px;
-    left: 20px;
-    right: 20px;
-    z-index: 1000;
-    pointer-events: none;
-}
-
-.status-history {
-    background-color: rgba(255, 255, 255, 0.95);
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 12px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.status-item {
-    font-size: 12px;
-    color: #666;
-    margin: 4px 0;
-    padding: 2px 0;
-}
-
-.status-item:not(:last-child) {
-    border-bottom: 1px solid #e0e0e0;
-    padding-bottom: 6px;
-}
-
 /* Responsive design */
 @media (max-width: 1024px) {
     .preview-section {
@@ -325,12 +281,6 @@ export default {
     .automation-builder {
         margin: 0;
         height: 100vh;
-    }
-    
-    .status-history-overlay {
-        left: 16px;
-        right: 16px;
-        bottom: 16px;
     }
 }
 </style>
