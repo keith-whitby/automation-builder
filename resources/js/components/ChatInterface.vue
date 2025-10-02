@@ -113,7 +113,8 @@ export default {
     data() {
         return {
             userInput: '',
-            clickedMessageIds: []
+            clickedMessageIds: [],
+            currentSteps: [] // Track the current automation steps
         };
     },
     watch: {
@@ -164,8 +165,45 @@ export default {
                 // Handle tool call
                 this.$emit('tool-call', suggestion.tool_call);
             } else {
-                // Send payload as user message
+                // Check if this is an instruction to add a step
+                if (this.isAutomationInstruction(suggestion.payload)) {
+                    this.handleAutomationInstruction(suggestion.id, suggestion.payload);
+                }
+                // Always send payload as user message
                 this.sendMessage(suggestion.payload);
+            }
+        },
+
+        isAutomationInstruction(payload) {
+            // Check if the payload is an instruction to add a step
+            const lowerPayload = payload.toLowerCase();
+            return lowerPayload.includes('add') && (
+                lowerPayload.includes('trigger') ||
+                lowerPayload.includes('delay') ||
+                lowerPayload.includes('wait') ||
+                lowerPayload.includes('condition') ||
+                lowerPayload.includes('action') ||
+                lowerPayload.includes('message') ||
+                lowerPayload.includes('task')
+            );
+        },
+
+        handleAutomationInstruction(id, payload) {
+            console.log('Handling automation instruction:', { id, payload });
+            
+            // Parse the instruction and add the appropriate step
+            const lowerPayload = payload.toLowerCase();
+            
+            if (lowerPayload.includes('trigger')) {
+                this.addTrigger(id);
+            } else if (lowerPayload.includes('delay') || lowerPayload.includes('wait')) {
+                this.addDelay(id, payload);
+            } else if (lowerPayload.includes('condition')) {
+                this.addCondition(id, payload);
+            } else if (lowerPayload.includes('message')) {
+                this.addSendMessageAction(id, payload);
+            } else if (lowerPayload.includes('task')) {
+                this.addCreateTaskAction(id, payload);
             }
         },
 
@@ -215,6 +253,120 @@ export default {
                 const v = c == 'x' ? r : (r & 0x3 | 0x8);
                 return v.toString(16);
             });
+        },
+
+        addTrigger(triggerId) {
+            // Map trigger IDs to trigger types
+            const triggerMap = {
+                'issue_raised': 'ISSUE_RAISED',
+                'user_raised_issue': 'ISSUE_RAISED',
+                'invoice_due': 'INVOICE_DUE',
+                'user_joined': 'USER_JOINED',
+                'new_user': 'USER_JOINED'
+            };
+
+            const triggerType = triggerMap[triggerId.toLowerCase()] || 'ISSUE_RAISED';
+
+            const trigger = {
+                workflow_step_id: "UI_" + this.createUUID(),
+                ui_new: true,
+                __typename: "WorkflowTrigger",
+                trigger_type: triggerType,
+                variables: [],
+                default_condition: null
+            };
+
+            this.currentSteps.push(trigger);
+            this.updateAutomationSteps();
+        },
+
+        addDelay(id, payload) {
+            // Extract delay value and unit from payload if possible
+            const delayMatch = payload.match(/(\d+)\s*(day|hour|minute|week)s?/i);
+            const value = delayMatch ? delayMatch[1] : "3";
+            const unit = delayMatch ? delayMatch[2].toUpperCase() : "DAY";
+
+            const delay = {
+                workflow_step_id: "UI_" + this.createUUID(),
+                ui_new: true,
+                delay_for: { value, unit }
+            };
+
+            this.currentSteps.push(delay);
+            this.updateAutomationSteps();
+        },
+
+        addCondition(id, payload) {
+            // Default condition - can be customized based on payload
+            const condition = {
+                workflow_step_id: "UI_" + this.createUUID(),
+                ui_new: true,
+                condition_operation: "IN",
+                condition_parameters: [
+                    {
+                        value: null,
+                        property_id: null,
+                        variable: "INVOICE_STATUS"
+                    },
+                    { value: "Due" },
+                    { value: "Overdue" }
+                ]
+            };
+
+            this.currentSteps.push(condition);
+            this.updateAutomationSteps();
+        },
+
+        addSendMessageAction(id, payload) {
+            // Extract message from payload if possible
+            const messageMatch = payload.match(/["'](.+?)["']/);
+            const message = messageMatch ? `<p>${messageMatch[1]}</p>` : "<p>Message content here</p>";
+
+            const action = {
+                workflow_step_id: "UI_" + this.createUUID(),
+                ui_new: true,
+                action_type: "SEND_MESSAGE",
+                send_message: {
+                    message: message,
+                    from_admin_user_id: null,
+                    target_admin_user_id: null,
+                    target_group_conversation_id: null,
+                    target_team_admins: true
+                }
+            };
+
+            this.currentSteps.push(action);
+            this.updateAutomationSteps();
+        },
+
+        addCreateTaskAction(id, payload) {
+            // Extract task details from payload if possible
+            const action = {
+                workflow_step_id: "UI_" + this.createUUID(),
+                ui_new: true,
+                action_type: "CREATE_TASK",
+                create_task: {
+                    name: "<p>New task</p>",
+                    description: "<p>Task description</p>",
+                    assignee_user_id: null,
+                    set_assignee_primary_location_admin: true,
+                    set_no_due_timestamp: false,
+                    to_due: { value: 0, unit: "DAY" }
+                }
+            };
+
+            this.currentSteps.push(action);
+            this.updateAutomationSteps();
+        },
+
+        updateAutomationSteps() {
+            // Send the complete updated steps array to parent window
+            window.parent.postMessage({ 
+                command: "AssistantSetAutomationSteps", 
+                payload: { steps: this.currentSteps } 
+            }, '*');
+            
+            console.log('Updated automation steps:', this.currentSteps);
         },
 
         testSetSteps() {
@@ -273,7 +425,8 @@ export default {
                 }
             ];
 
-            // Send message to parent window
+            // Update internal state and send to parent
+            this.currentSteps = steps;
             window.parent.postMessage({ 
                 command: "AssistantSetAutomationSteps", 
                 payload: { steps } 
