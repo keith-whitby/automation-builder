@@ -23,10 +23,6 @@ class OpenAIService {
             callsThisMessage: 0,
             lastMessageId: null
         };
-        
-        // Automation state tracking
-        this.hasTrigger = false; // Track if automation already has a trigger
-        this.currentSteps = []; // Track current automation steps
     }
 
     /**
@@ -344,44 +340,19 @@ class OpenAIService {
         // Add user message to history
         this.addMessage('user', userMessage);
 
-        // Update automation state from options
-        if (options.hasTrigger !== undefined) {
-            this.hasTrigger = options.hasTrigger;
-        }
-        if (options.currentSteps) {
-            this.currentSteps = options.currentSteps;
-        }
-
-        // Filter functions based on context
-        let availableFunctions = this.functions;
-        if (this.hasTrigger) {
-            // If trigger already exists, exclude trigger-related functions
-            availableFunctions = this.functions.filter(func => 
-                func.name !== 'get_available_triggers' &&
-                !(func.name === 'get_available_workflow_steps')
-            );
-            console.log('🔒 Trigger already exists. Excluding trigger functions from available tools.');
-            console.log('Available functions:', availableFunctions.map(f => f.name));
-        }
-
         // Prepare request payload for Responses API with structured output
         const payload = {
             model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
             temperature: 0,
             prompt: { "id": this.promptId },
             input: [
-                // Add context about current automation state
-                ...(this.hasTrigger ? [{
-                    role: 'system',
-                    content: 'IMPORTANT: This automation already has a trigger. Only suggest actions (like send_email, create_task, send_message) or delays/conditions. Do NOT suggest adding another trigger unless the user explicitly asks to change it.'
-                }] : []),
                 // System message is handled by the prompt ID, no need for redundant instructions
                 ...this.getContextMessages().filter(msg => msg.role !== 'system')
             ],
             // Include tools in initial call to allow the model to request a tool
             // After executing a tool, sendFunctionResult will disable tools to force user response
             ...(this.canMakeFunctionCall() ? {
-                tools: availableFunctions.map(func => ({
+                tools: this.functions.map(func => ({
                     type: 'function',
                     name: func.name,
                     description: func.description,
