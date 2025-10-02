@@ -261,7 +261,11 @@ class OptixApiService {
         `;
 
         const organizationId = authService.getOrganizationId();
-        return await this.graphqlRequest(query, { organization_id: organizationId });
+        if (!organizationId) {
+            console.warn('OptixApiService: Organization ID not available, attempting to initialize...');
+            await this.initialize();
+        }
+        return await this.graphqlRequest(query, { organization_id: authService.getOrganizationId() });
     }
 
     /**
@@ -290,7 +294,11 @@ class OptixApiService {
         `;
 
         const organizationId = authService.getOrganizationId();
-        return await this.graphqlRequest(query, { organization_id: organizationId });
+        if (!organizationId) {
+            console.warn('OptixApiService: Organization ID not available, attempting to initialize...');
+            await this.initialize();
+        }
+        return await this.graphqlRequest(query, { organization_id: authService.getOrganizationId() });
     }
 
     /**
@@ -309,7 +317,11 @@ class OptixApiService {
         `;
 
         const organizationId = authService.getOrganizationId();
-        return await this.graphqlRequest(query, { organization_id: organizationId });
+        if (!organizationId) {
+            console.warn('OptixApiService: Organization ID not available, attempting to initialize...');
+            await this.initialize();
+        }
+        return await this.graphqlRequest(query, { organization_id: authService.getOrganizationId() });
     }
 
     /**
@@ -328,7 +340,11 @@ class OptixApiService {
         `;
 
         const organizationId = authService.getOrganizationId();
-        return await this.graphqlRequest(query, { organization_id: organizationId });
+        if (!organizationId) {
+            console.warn('OptixApiService: Organization ID not available, attempting to initialize...');
+            await this.initialize();
+        }
+        return await this.graphqlRequest(query, { organization_id: authService.getOrganizationId() });
     }
 
     /**
@@ -349,29 +365,6 @@ class OptixApiService {
         return await this.graphqlRequest(query);
     }
 
-    /**
-     * Get available workflow steps by type
-     */
-    async getWorkflowAvailableSteps(stepType = null) {
-        const query = `
-            query GetWorkflowAvailableSteps {
-                workflowAvailableSteps {
-                    ... on WorkflowTrigger {
-                        trigger_type
-                        variables
-                    }
-                    ... on WorkflowAction {
-                        action_type
-                    }
-                    ... on WorkflowCondition {
-                        condition_operation
-                    }
-                }
-            }
-        `;
-
-        return await this.graphqlRequest(query);
-    }
 
     /**
      * Get available action types
