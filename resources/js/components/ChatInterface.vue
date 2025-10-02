@@ -2,28 +2,6 @@
     <div class="chat-interface">
         <!-- Messages Area -->
         <div class="messages-area" ref="messagesContainer">
-            <!-- Welcome Message -->
-            <div v-if="messages.length === 0" class="welcome-message">
-                <div class="welcome-content">
-                    <h1>Optix Automation Builder</h1>
-                    <p>I'm here to help you create automations for your Optix organization. Just tell me what you want to automate, and I'll guide you through the process.</p>
-                    
-                    <div class="example-prompts">
-                        <h3>Try these examples:</h3>
-                        <div class="prompt-examples">
-                            <div class="prompt-example" @click="sendMessage('Send a welcome email to new users when they join the organization')">
-                                "Send a welcome email to new users when they join the organization"
-                            </div>
-                            <div class="prompt-example" @click="sendMessage('Create a task when users raise an issue, wait 5 days then send a message')">
-                                "Create a task when users raise an issue, wait 5 days then send a message"
-                            </div>
-                            <div class="prompt-example" @click="sendMessage('Send an email to users 5 days after their invoice becomes due')">
-                                "Send an email to users 5 days after their invoice becomes due"
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
 
             <!-- Chat Messages -->
             <div v-for="(message, index) in messages" :key="index" class="message-wrapper">
@@ -48,6 +26,22 @@
 
         <!-- Input Area -->
         <div class="input-area">
+            <!-- Example Prompts (shown when no messages) -->
+            <div v-if="messages.length === 0" class="example-prompts">
+                <h3>Try these examples:</h3>
+                <div class="prompt-examples">
+                    <div class="prompt-example" @click="sendMessage('Send a welcome email to new users when they join the organization')">
+                        Send a welcome email to new users when they join the organization
+                    </div>
+                    <div class="prompt-example" @click="sendMessage('Create a task when users raise an issue, wait 5 days then send a message')">
+                        Create a task when users raise an issue, wait 5 days then send a message
+                    </div>
+                    <div class="prompt-example" @click="sendMessage('Send an email to users 5 days after their invoice becomes due')">
+                        Send an email to users 5 days after their invoice becomes due
+                    </div>
+                </div>
+            </div>
+
             <div class="input-container">
                 <div class="input-wrapper">
                     <textarea
@@ -583,48 +577,28 @@ export default {
     min-height: 0;
 }
 
-.welcome-message {
-    text-align: center;
-    padding: 80px 20px;
-    color: #6c757d;
-    max-width: 600px;
-    margin: 0 auto;
-}
-
-.welcome-content h1 {
-    color: #2c3e50;
-    margin-bottom: 16px;
-    font-size: 32px;
-    font-weight: 600;
-}
-
-.welcome-content p {
-    font-size: 16px;
-    line-height: 1.6;
-    margin-bottom: 32px;
-}
-
 .example-prompts {
-    margin-top: 40px;
+    max-width: 768px;
+    margin: 0 auto 16px auto;
+    padding: 0 20px;
 }
 
 .example-prompts h3 {
-    color: #2c3e50;
-    margin-bottom: 16px;
-    font-size: 18px;
-    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 12px;
+    font-size: 14px;
+    font-weight: 500;
+    text-align: left;
 }
 
 .prompt-examples {
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    max-width: 500px;
-    margin: 0 auto;
+    gap: 8px;
 }
 
 .prompt-example {
-    padding: 16px 20px;
+    padding: 12px 16px;
     background: white;
     border: 1px solid #e5e5e5;
     border-radius: 8px;
@@ -716,12 +690,8 @@ export default {
 
 /* Responsive design */
 @media (max-width: 768px) {
-    .welcome-message {
-        padding: 40px 20px;
-    }
-    
-    .welcome-content h1 {
-        font-size: 24px;
+    .example-prompts {
+        padding: 0 16px;
     }
     
     .input-area {
@@ -731,12 +701,20 @@ export default {
 
 /* Additional responsive breakpoints to ensure consistent bottom padding */
 @media (max-width: 480px) {
+    .example-prompts {
+        padding: 0 12px;
+    }
+    
     .input-area {
         padding: 12px 12px 32px 12px;
     }
 }
 
 @media (max-width: 320px) {
+    .example-prompts {
+        padding: 0 8px;
+    }
+    
     .input-area {
         padding: 8px 8px 32px 8px;
     }
