@@ -49,32 +49,13 @@
 
             </div>
 
-            <!-- Typing Indicator -->
-            <div v-if="isTyping" class="message-wrapper">
+            <!-- Typing Indicator / Status Message -->
+            <div v-if="isTyping || lastCompletedStatus" class="message-wrapper">
                 <MessageBubble 
                     :message="{ role: 'assistant', content: '', timestamp: new Date() }"
-                    :is-typing="true"
-                    :status-message="statusMessage"
+                    :is-typing="isTyping"
+                    :status-message="isTyping ? statusMessage : lastCompletedStatus"
                 />
-            </div>
-
-            <!-- Status History -->
-            <div v-if="statusHistory.length > 0 && !isTyping" class="message-wrapper">
-                <div class="message assistant">
-                    <div class="message-container">
-                        <div class="message-content">
-                            <div class="status-history">
-                                <div 
-                                    v-for="(status, index) in statusHistory" 
-                                    :key="index"
-                                    class="status-item"
-                                >
-                                    {{ status.displayText }}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
         </div>
 
@@ -137,7 +118,8 @@ export default {
         return {
             userInput: '',
             clickedMessageIds: [],
-            currentSteps: [] // Track the current automation steps
+            currentSteps: [], // Track the current automation steps
+            lastCompletedStatus: '' // Track the last completed status message
         };
     },
     watch: {
@@ -149,18 +131,55 @@ export default {
             },
             deep: true
         },
-        isTyping() {
+        isTyping(newValue, oldValue) {
+            // When typing stops, save the last status message (converted to past tense)
+            if (oldValue && !newValue && this.statusMessage) {
+                this.lastCompletedStatus = this.convertToPastTense(this.statusMessage);
+                
+                // Clear after the next message comes in
+                setTimeout(() => {
+                    if (this.messages.length > 0) {
+                        this.lastCompletedStatus = '';
+                    }
+                }, 100);
+            }
+            
             this.$nextTick(() => {
                 this.scrollToBottom();
             });
+        },
+        statusHistory: {
+            handler(newHistory) {
+                // When status history is updated and we're not typing, show the last status
+                if (!this.isTyping && newHistory.length > 0) {
+                    const lastStatus = newHistory[newHistory.length - 1];
+                    this.lastCompletedStatus = lastStatus.displayText;
+                }
+            },
+            deep: true
         }
     },
     methods: {
         sendMessage(content) {
             if (!content.trim()) return;
             
+            // Clear the last completed status when sending a new message
+            this.lastCompletedStatus = '';
+            
             this.$emit('send-message', content);
             this.userInput = '';
+        },
+        
+        convertToPastTense(text) {
+            // Convert present tense status messages to past tense
+            return text
+                .replace(/Processing/gi, 'Processed')
+                .replace(/Sending/gi, 'Sent')
+                .replace(/Loading/gi, 'Loaded')
+                .replace(/Fetching/gi, 'Fetched')
+                .replace(/Creating/gi, 'Created')
+                .replace(/Updating/gi, 'Updated')
+                .replace(/\.\.\.$/, ''); // Remove trailing ellipsis
         },
 
         handleEnterKey(event) {
@@ -660,27 +679,5 @@ export default {
     .input-area {
         padding: 8px 8px 32px 8px;
     }
-}
-
-/* Status History Styles */
-.status-history {
-    background-color: rgba(255, 255, 255, 0.95);
-    border: 1px solid #e0e0e0;
-    border-radius: 8px;
-    padding: 12px;
-    backdrop-filter: blur(10px);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
-
-.status-item {
-    font-size: 13px;
-    color: #6b7280;
-    margin: 4px 0;
-    padding: 2px 0;
-}
-
-.status-item:not(:last-child) {
-    border-bottom: 1px solid #e5e7eb;
-    padding-bottom: 6px;
 }
 </style>
