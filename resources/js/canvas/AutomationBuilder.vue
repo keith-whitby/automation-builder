@@ -4,12 +4,14 @@
             <!-- Chat Interface -->
             <div class="chat-section">
                 <ChatInterface
+                    ref="chatInterface"
                     :messages="messages"
                     :is-typing="isLoading"
                     :status-message="statusMessage"
                     :status-history="currentStatusHistory"
                     @send-message="handleSendMessage"
                     @tool-call="handleToolCall"
+                    @steps-updated="handleStepsUpdated"
                 />
             </div>
             
@@ -45,7 +47,9 @@ export default {
             currentStatusHistory: [],
             showPreview: false,
             currentAutomation: null,
-            currentStep: null
+            currentStep: null,
+            currentSteps: [],
+            hasTrigger: false
         };
     },
     async mounted() {
@@ -161,6 +165,19 @@ export default {
             }
         },
         
+        handleStepsUpdated(steps) {
+            // Track current steps and whether we have a trigger
+            this.currentSteps = steps;
+            const previousTriggerState = this.hasTrigger;
+            this.hasTrigger = steps.some(step => step.__typename === 'WorkflowTrigger' || step.trigger_type);
+            
+            if (this.hasTrigger && !previousTriggerState) {
+                console.log('🎯 Trigger added! Future LLM responses will focus on actions, delays, and conditions.');
+            }
+            
+            console.log('Steps updated. Has trigger:', this.hasTrigger, 'Step count:', steps.length);
+        },
+        
         async handleSendMessage(userMessage) {
             if (!userMessage.trim() || this.isLoading) return;
             
@@ -177,7 +194,17 @@ export default {
                 if (!openAIService.apiKey) {
                     this.addMessage('assistant', 'I understand you want to: "' + userMessage + '". However, I need OpenAI integration to provide full automation assistance. Please configure your OPENAI_API_KEY environment variable to enable AI-powered automation building.');
                 } else {
-                    const response = await openAIService.sendMessage(userMessage);
+                    // Check if user is explicitly asking for a different trigger
+                    const askingForNewTrigger = userMessage.toLowerCase().includes('different trigger') || 
+                                               userMessage.toLowerCase().includes('change trigger') ||
+                                               userMessage.toLowerCase().includes('another trigger');
+                    
+                    // Pass context about current automation state
+                    const response = await openAIService.sendMessage(userMessage, {
+                        hasTrigger: this.hasTrigger && !askingForNewTrigger,
+                        currentSteps: this.currentSteps
+                    });
+                    
                     // Handle structured response from OpenAI
                     if (typeof response === 'object' && response.display_text) {
                         this.addMessage('assistant', response.display_text, false, '', response.ui_suggestions);

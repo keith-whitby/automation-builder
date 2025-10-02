@@ -5,9 +5,6 @@
             <!-- Welcome Message -->
             <div v-if="messages.length === 0" class="welcome-message">
                 <div class="welcome-content">
-                    <h1>Optix Automation Builder</h1>
-                    <p>I'm here to help you create automations for your Optix organization. Just tell me what you want to automate, and I'll guide you through the process.</p>
-                    
                     <div class="example-prompts">
                         <h3>Try these examples:</h3>
                         <div class="prompt-examples">
@@ -489,7 +486,10 @@ export default {
             // Create a plain copy without Vue reactivity to avoid infinite loops
             const plainSteps = JSON.parse(JSON.stringify(this.currentSteps));
             
-            // Send the complete updated steps array to parent window
+            // Emit event to parent component (AutomationBuilder)
+            this.$emit('steps-updated', plainSteps);
+            
+            // Send the complete updated steps array to parent window (Optix)
             window.parent.postMessage({ 
                 command: "AssistantSetAutomationSteps", 
                 payload: { steps: plainSteps } 
