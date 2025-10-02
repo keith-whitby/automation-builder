@@ -100,6 +100,20 @@ class OptixApiService {
                 throw new Error('Invalid token format. Token appears to be too short.');
             }
 
+            // If we don't have an organization ID, fetch it from the API
+            if (!authService.getOrganizationId()) {
+                console.log('OptixApiService: Fetching organization ID from API...');
+                try {
+                    const orgData = await this.getOrganization();
+                    if (orgData && orgData.organization && orgData.organization.organization_id) {
+                        authService.setOrganizationId(orgData.organization.organization_id);
+                        console.log('OptixApiService: Organization ID fetched and stored');
+                    }
+                } catch (error) {
+                    console.warn('OptixApiService: Failed to fetch organization ID:', error);
+                }
+            }
+
             console.log('OptixApiService: Initialized with token');
             return true;
             

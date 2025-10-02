@@ -222,6 +222,17 @@ class AuthService {
     }
 
     /**
+     * Set the organization ID (used when fetched from API)
+     * @param {string} organizationId - The organization ID
+     */
+    setOrganizationId(organizationId) {
+        this.organizationId = organizationId;
+        if (organizationId) {
+            localStorage.setItem('optix_organization_id', organizationId);
+        }
+    }
+
+    /**
      * Get any authentication error
      * @returns {string|null} - Error message or null
      */
