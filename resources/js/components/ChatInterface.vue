@@ -102,6 +102,11 @@
                     </button>
                 </div>
             </div>
+            
+            <!-- AI Disclaimer -->
+            <div class="ai-disclaimer">
+                <span class="disclaimer-text">AI assistant can make mistakes</span>
+            </div>
         </div>
     </div>
 </template>
@@ -883,5 +888,19 @@ export default {
     .input-area {
         padding: 8px 8px 32px 8px;
     }
+}
+
+/* AI Disclaimer Styles */
+.ai-disclaimer {
+    max-width: 768px;
+    margin: 0 auto;
+    padding: 8px 16px 16px 16px;
+    text-align: center;
+}
+
+.disclaimer-text {
+    font-size: 12px;
+    color: #6b7280;
+    font-style: italic;
 }
 </style>
