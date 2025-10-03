@@ -24,7 +24,7 @@
                         </svg>
                     </div>
                     <h1 class="header-title">Assistant</h1>
-                    <div class="beta-chip">AI beta</div>
+                    <div class="beta-chip">AI test</div>
                 </div>
                 <div class="header-right">
                     <button class="close-button" @click="handleClose">
