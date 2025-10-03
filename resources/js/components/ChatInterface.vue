@@ -46,6 +46,7 @@
                     :is-typing="false"
                     :hide-buttons="clickedMessageIds.includes(message.id || index)"
                     @quick-reply="(suggestion) => handleQuickReply(suggestion, message.id || index)"
+                    @feedback="handleFeedback"
                 />
 
             </div>
@@ -231,6 +232,13 @@ export default {
                 // Always send payload as user message
                 this.sendMessage(suggestion.payload);
             }
+        },
+
+        handleFeedback(feedbackData) {
+            console.log('Feedback received:', feedbackData);
+            // For now, just log the feedback - this could be extended to send to an API
+            // You could emit an event to the parent component or send to a feedback service
+            this.$emit('feedback', feedbackData);
         },
 
         isAutomationInstruction(payload, label = '', id = '') {
