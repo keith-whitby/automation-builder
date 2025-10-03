@@ -70,8 +70,8 @@
                     <div class="prompt-example" @click="sendMessage('Send a welcome email to new users when they join the organization')">
                         Send a welcome email to new users when they join the organization
                     </div>
-                    <div class="prompt-example" @click="sendMessage('Create a task when users raise an issue, wait 5 days then send a message')">
-                        Create a task when users raise an issue, wait 5 days then send a message
+                    <div class="prompt-example" @click="sendMessage('When users raise an issue, create a task. Then wait 5 days and then send a message')">
+                        When users raise an issue, create a task. Then wait 5 days and then send a message
                     </div>
                     <div class="prompt-example" @click="sendMessage('Send an email to users 5 days after their invoice becomes due')">
                         Send an email to users 5 days after their invoice becomes due

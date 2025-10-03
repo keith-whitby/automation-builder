@@ -677,6 +677,11 @@ export default {
     cursor: pointer;
     transition: color 0.2s ease;
     padding: 0;
+    position: relative;
+}
+
+.feedback-button svg {
+    pointer-events: none;
 }
 
 .feedback-button:hover {
