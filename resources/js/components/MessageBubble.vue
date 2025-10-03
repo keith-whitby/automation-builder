@@ -13,12 +13,12 @@
                 <div v-if="isAssistantMessage && !isTyping" class="feedback-icons">
                     <button class="feedback-button thumbs-up" @click="handleFeedback('positive')" title="Good response">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M7 10V20H5V10H7ZM20 10C20 9.45 19.55 9 19 9H13.5L14.5 4H11L10.5 6H9L9.5 4H6L7 9H5C4.45 9 4 9.45 4 10V18C4 18.55 4.45 19 5 19H15L20 14V10Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                            <path d="M7 10v10h2v-10h-2zm6-7v17h2v-17h-2zm4 7v10h2v-10h-2z" stroke="currentColor" stroke-width="1.5" fill="none"/>
                         </svg>
                     </button>
                     <button class="feedback-button thumbs-down" @click="handleFeedback('negative')" title="Not helpful">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M17 14V4H19V14H17ZM4 14C4 14.55 4.45 15 5 15H10.5L9.5 20H13L13.5 18H15L14.5 20H18L17 15H19C19.55 15 20 14.55 20 14V6C20 5.45 19.55 5 19 5H9L4 10V14Z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                            <path d="M17 14v-10h-2v10h2zm-6 7v-17h-2v17h2zm-4-7v-10h-2v10h2z" stroke="currentColor" stroke-width="1.5" fill="none"/>
                         </svg>
                     </button>
                 </div>
@@ -646,8 +646,8 @@ export default {
 /* Feedback Icons Styles */
 .feedback-icons {
     display: flex;
-    gap: 8px;
-    margin-top: 8px;
+    gap: 4px;
+    margin-top: 4px;
     align-items: center;
 }
 
@@ -655,35 +655,31 @@ export default {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 20px;
+    height: 20px;
     border: none;
-    border-radius: 6px;
     background: transparent;
     color: #9ca3af;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: color 0.2s ease;
     padding: 0;
 }
 
 .feedback-button:hover {
-    background: #f9fafb;
     color: #6b7280;
 }
 
 .feedback-button.thumbs-up:hover {
-    background: #f0fdf4;
     color: #16a34a;
 }
 
 .feedback-button.thumbs-down:hover {
-    background: #fef2f2;
     color: #dc2626;
 }
 
 .feedback-button svg {
-    width: 16px;
-    height: 16px;
+    width: 14px;
+    height: 14px;
 }
 
 /* Override any button with primary class to look like secondary */

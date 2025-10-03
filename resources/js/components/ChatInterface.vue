@@ -790,7 +790,7 @@ export default {
 
 .input-area {
     background: white;
-    padding: 20px 20px 32px 20px;
+    padding: 20px 20px 66px 20px;
     border-top: none !important;
 }
 
@@ -865,7 +865,7 @@ export default {
     }
     
     .input-area {
-        padding: 16px 16px 32px 16px;
+        padding: 16px 16px 66px 16px;
     }
 }
 
@@ -876,7 +876,7 @@ export default {
     }
     
     .input-area {
-        padding: 12px 12px 32px 12px;
+        padding: 12px 12px 66px 12px;
     }
 }
 
@@ -886,7 +886,7 @@ export default {
     }
     
     .input-area {
-        padding: 8px 8px 32px 8px;
+        padding: 8px 8px 66px 8px;
     }
 }
 
@@ -901,6 +901,5 @@ export default {
 .disclaimer-text {
     font-size: 12px;
     color: #6b7280;
-    font-style: italic;
 }
 </style>
