@@ -12,13 +12,27 @@
                 <!-- Feedback Icons for Assistant Messages -->
                 <div v-if="isAssistantMessage && !isTyping" class="feedback-icons">
                     <button class="feedback-button thumbs-up" @click="handleFeedback('positive')" title="Good response">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M7 10v10h2v-10h-2zm6-7v17h2v-17h-2zm4 7v10h2v-10h-2z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <g clip-path="url(#clip0_5895_85531)">
+                                <path d="M5.99996 13.9993H12C12.5533 13.9993 13.0266 13.666 13.2266 13.186L15.24 8.48601C15.3 8.33268 15.3333 8.17268 15.3333 7.99935V6.66602C15.3333 5.93268 14.7333 5.33268 14 5.33268H9.79329L10.4266 2.28602L10.4466 2.07268C10.4466 1.79935 10.3333 1.54602 10.1533 1.36602L9.44663 0.666016L5.05329 5.05935C4.81329 5.29935 4.66663 5.63268 4.66663 5.99935V12.666C4.66663 13.3993 5.26663 13.9993 5.99996 13.9993ZM5.99996 5.99935L8.89329 3.10602L7.99996 6.66602H14V7.99935L12 12.666H5.99996V5.99935ZM0.666626 5.99935H3.33329V13.9993H0.666626V5.99935Z" fill="currentColor"/>
+                            </g>
+                            <defs>
+                                <clipPath id="clip0_5895_85531">
+                                    <rect width="16" height="16" fill="white"/>
+                                </clipPath>
+                            </defs>
                         </svg>
                     </button>
-                    <button class="feedback-button thumbs-down" @click="handleFeedback('negative')" title="Not helpful">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M17 14v-10h-2v10h2zm-6 7v-17h-2v17h2zm-4-7v-10h-2v10h2z" stroke="currentColor" stroke-width="1.5" fill="none"/>
+                    <button class="feedback-button thumbs-down" @click="handleFeedback('negative')" title="Bad response">
+                        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <g clip-path="url(#clip0_5895_85961)">
+                                <path d="M9.99996 2H3.99996C3.44663 2 2.97329 2.33333 2.77329 2.81333L0.759959 7.51333C0.699959 7.66667 0.666626 7.82667 0.666626 8V9.33333C0.666626 10.0667 1.26663 10.6667 1.99996 10.6667H6.20663L5.57329 13.7133L5.55329 13.9267C5.55329 14.2 5.66663 14.4533 5.84663 14.6333L6.55329 15.3333L10.9466 10.94C11.1866 10.7 11.3333 10.3667 11.3333 10V3.33333C11.3333 2.6 10.7333 2 9.99996 2ZM9.99996 10L7.10663 12.8933L7.99996 9.33333H1.99996V8L3.99996 3.33333H9.99996V10ZM12.6666 2H15.3333V10H12.6666V2Z" fill="currentColor"/>
+                            </g>
+                            <defs>
+                                <clipPath id="clip0_5895_85961">
+                                    <rect width="16" height="16" fill="white"/>
+                                </clipPath>
+                            </defs>
                         </svg>
                     </button>
                 </div>
@@ -408,7 +422,7 @@ export default {
     padding: 8px 16px;
     border: 1px solid #d1d5db;
     border-radius: 20px;
-    background: #f3f4f6;
+    background: #ffffff;
     color: #374151;
     font-size: 14px;
     font-weight: 500;
@@ -425,7 +439,7 @@ export default {
 }
 
 .message .quick-reply-button.primary {
-    background: #f3f4f6 !important;
+    background: #ffffff !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
 }
@@ -437,7 +451,7 @@ export default {
 
 /* Override any global .btn-primary styles that might be applied */
 .message .quick-reply-button.primary.btn-primary {
-    background: #f3f4f6 !important;
+    background: #ffffff !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
 }
@@ -449,7 +463,7 @@ export default {
 
 /* Additional specificity to override any global button styles */
 .message .quick-reply-buttons .quick-reply-button.primary {
-    background: #f3f4f6 !important;
+    background: #ffffff !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
 }
@@ -464,7 +478,7 @@ export default {
 .message .quick-reply-buttons .quick-reply-button.primary:focus,
 .message .quick-reply-buttons .quick-reply-button.primary:active,
 .message .quick-reply-buttons .quick-reply-button.primary:visited {
-    background: #f3f4f6 !important;
+    background: #ffffff !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
     -webkit-appearance: none !important;
@@ -473,7 +487,7 @@ export default {
 
 /* Maximum specificity override for any global button styles */
 .message .quick-reply-buttons .quick-reply-button.primary[class*="primary"] {
-    background: #f3f4f6 !important;
+    background: #ffffff !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
 }
@@ -481,8 +495,8 @@ export default {
 /* Override any CSS custom properties that might be setting colors */
 .message .quick-reply-buttons .quick-reply-button.primary {
     --optix-theme-defaultFontColor: #374151 !important;
-    --optix-theme-accentColor: #f3f4f6 !important;
-    background: #f3f4f6 !important;
+    --optix-theme-accentColor: #ffffff !important;
+    background: #ffffff !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
 }
@@ -490,14 +504,14 @@ export default {
 /* Nuclear option - override everything with maximum specificity */
 .message .quick-reply-buttons .quick-reply-button.primary,
 .message .quick-reply-buttons .quick-reply-button.primary * {
-    background: #f3f4f6 !important;
+    background: #ffffff !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
 }
 
 /* Override any inline styles or computed styles */
 .message .quick-reply-buttons .quick-reply-button.primary {
-    background-color: #f3f4f6 !important;
+    background-color: #ffffff !important;
     background-image: none !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
@@ -509,12 +523,12 @@ export default {
 .message .quick-reply-buttons .quick-reply-button.primary,
 .message .quick-reply-buttons .quick-reply-button.primary:not([disabled]),
 .message .quick-reply-buttons .quick-reply-button.primary:not(.disabled) {
-    background: #f3f4f6 !important;
-    background-color: #f3f4f6 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
     --optix-theme-defaultFontColor: #374151 !important;
-    --optix-theme-accentColor: #f3f4f6 !important;
+    --optix-theme-accentColor: #ffffff !important;
     --optix-theme-accentTextColor: #374151 !important;
 }
 
@@ -525,7 +539,7 @@ export default {
     padding: 8px 16px !important;
     border: 1px solid #d1d5db !important;
     border-radius: 20px !important;
-    background: #f3f4f6 !important;
+    background: #ffffff !important;
     color: #374151 !important;
     font-size: 14px !important;
     font-weight: 500 !important;
@@ -545,8 +559,8 @@ export default {
     padding: 8px 16px !important;
     border: 1px solid #d1d5db !important;
     border-radius: 20px !important;
-    background: #f3f4f6 !important;
-    background-color: #f3f4f6 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #374151 !important;
     font-size: 14px !important;
     font-weight: 500 !important;
@@ -566,18 +580,18 @@ export default {
 .message .quick-reply-buttons .quick-reply-button.primary:focus,
 .message .quick-reply-buttons .quick-reply-button.primary:active,
 .message .quick-reply-buttons .quick-reply-button.primary:visited {
-    background: #f3f4f6 !important;
-    background-color: #f3f4f6 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     background-image: none !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
     border-style: solid !important;
     border-width: 1px !important;
     --optix-theme-defaultFontColor: #374151 !important;
-    --optix-theme-accentColor: #f3f4f6 !important;
+    --optix-theme-accentColor: #ffffff !important;
     --optix-theme-accentTextColor: #374151 !important;
     --optix-theme-defaultFontRGBColor: 55, 65, 81 !important;
-    --optix-theme-accentRGBColor: 243, 244, 246 !important;
+    --optix-theme-accentRGBColor: 255, 255, 255 !important;
 }
 
 /* Nuclear option - override everything */
@@ -587,8 +601,8 @@ export default {
     padding: 8px 16px !important;
     border: 1px solid #d1d5db !important;
     border-radius: 20px !important;
-    background: #f3f4f6 !important;
-    background-color: #f3f4f6 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     background-image: none !important;
     color: #374151 !important;
     font-size: 14px !important;
@@ -608,16 +622,16 @@ export default {
 
 /* Force override for any button with primary class */
 .message .quick-reply-buttons button[class*="primary"] {
-    background: #f3f4f6 !important;
-    background-color: #f3f4f6 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
 }
 
 /* Override any global button styles that might be applied */
 .message .quick-reply-buttons button.quick-reply-button {
-    background: #f3f4f6 !important;
-    background-color: #f3f4f6 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
 }
@@ -666,15 +680,7 @@ export default {
 }
 
 .feedback-button:hover {
-    color: #6b7280;
-}
-
-.feedback-button.thumbs-up:hover {
-    color: #16a34a;
-}
-
-.feedback-button.thumbs-down:hover {
-    color: #dc2626;
+    color: #374151;
 }
 
 .feedback-button svg {
@@ -686,8 +692,8 @@ export default {
 
 /* Force override for any button with primary class */
 .quick-reply-button.primary {
-    background: #f3f4f6 !important;
-    background-color: #f3f4f6 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
 }
@@ -700,8 +706,8 @@ export default {
 
 /* Override any global button styles */
 button.quick-reply-button {
-    background: #f3f4f6 !important;
-    background-color: #f3f4f6 !important;
+    background: #ffffff !important;
+    background-color: #ffffff !important;
     color: #374151 !important;
     border-color: #d1d5db !important;
 }
