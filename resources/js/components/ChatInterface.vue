@@ -876,7 +876,7 @@ export default {
     }
     
     .input-area {
-        padding: 12px 12px 66px 12px;
+        padding: 12px 12px 0px 12px;
     }
 }
 
