@@ -171,7 +171,7 @@ export default {
             this.currentStatusHistory = [];
             
             this.isLoading = true;
-            this.statusMessage = 'Processing your request...';
+            this.statusMessage = 'Thinking...';
             
             try {
                 if (!openAIService.apiKey) {
